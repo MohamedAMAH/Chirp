@@ -14,7 +14,12 @@
     "test": "npm run build && node --test --test-isolation=none tests/*.test.cjs"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
-    "@types/node": "24.5.2"
+    "@types/node": "24.5.2",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "1.12.36"
   }
 }
