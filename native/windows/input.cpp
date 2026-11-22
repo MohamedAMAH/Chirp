@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include "clipboard.hpp"
 
 namespace {
 HWND owner, destination;
@@ -48,16 +49,26 @@ void CALLBACK focus(HWINEVENTHOOK,DWORD,HWND window,LONG,LONG,DWORD,DWORD) {
     if(window!=destination) focusChanged=true;
 }
 LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
+    if(clipboard::handle(window,msg,wp))return 0;
     if(msg==Command) {
         std::unique_ptr<std::string> line(reinterpret_cast<std::string*>(lp));
         if(*line=="quit") PostQuitMessage(0);
         if(*line=="arm") armed=true;
+        if(line->rfind("paste ",0)==0){
+            std::istringstream fields(line->substr(6));
+            unsigned id; std::string hex;
+            if(!(fields>>id>>hex)){emit("paste-error");return 0;}
+            const auto text=clipboard::fromHex(hex);
+            emit(text.empty()?"paste-error":clipboard::deliver(owner,destination,destinationPid,
+                 session==id && !focusChanged,text));
+        }
         return 0;
     }
     return DefWindowProcW(window,msg,wp,lp);
 }
 }
 int main() {
+    OleInitialize(nullptr);
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     auto instance=GetModuleHandleW(nullptr);
     WNDCLASSW cls{}; cls.hInstance=instance; cls.lpszClassName=L"ChirpInput"; cls.lpfnWndProc=procedure;
@@ -78,5 +89,6 @@ int main() {
     MSG message{};
     while(GetMessageW(&message,nullptr,0,0)>0) DispatchMessageW(&message);
     UnhookWinEvent(changes); UnhookWindowsHookEx(keys); DestroyWindow(owner);
+    clipboard::discard(); OleUninitialize();
     return 0;
 }
