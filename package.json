@@ -1,0 +1,20 @@
+{
+  "name": "chirp-dictation",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Offline Windows push-to-talk dictation",
+  "main": "out/main/index.js",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "test": "npm run build && node --test --test-isolation=none tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.5.2"
+  }
+}
