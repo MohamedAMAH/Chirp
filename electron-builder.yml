@@ -1,0 +1,31 @@
+appId: local.chirp.dictation
+productName: Chirp
+npmRebuild: false
+files:
+  - out/**/*
+  - src/renderer/*.html
+  - src/renderer/*.css
+  - package.json
+asarUnpack:
+  - node_modules/sherpa-onnx*/**/*
+extraResources:
+  - from: build/chirp-input.exe
+    to: chirp-input.exe
+  - from: models
+    to: models
+    filter: ["**/*", "!**/test_wavs/**/*"]
+extraFiles:
+  - from: native/windows/terms.txt
+    to: Chirp Terms.txt
+win:
+  target: nsis
+nsis:
+  license: native/windows/terms.txt
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: false
+  createStartMenuShortcut: false
+  runAfterFinish: true
+  differentialPackage: false
+  include: native/windows/startup.nsh
+  artifactName: Chirp Setup.exe

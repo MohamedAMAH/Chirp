@@ -11,7 +11,11 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
-    "test": "npm run build && node --test --test-isolation=none tests/*.test.cjs"
+    "test": "npm run build && node --test --test-isolation=none tests/*.test.cjs",
+    "models": "node scripts/models.mjs",
+    "native": "scripts\\native.cmd",
+    "start": "npm run build && npm run native && electron .",
+    "dist": "npm run models && npm run native && npm run build && electron-builder --win nsis --x64"
   },
   "devDependencies": {
     "@types/node": "24.5.2",
@@ -21,5 +25,6 @@
   },
   "dependencies": {
     "sherpa-onnx-node": "1.12.36"
-  }
+  },
+  "author": "Chirp"
 }
