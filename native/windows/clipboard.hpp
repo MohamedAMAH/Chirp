@@ -10,6 +10,8 @@ DWORD readerPid, sequence;
 bool waiting;
 int retries;
 constexpr UINT Timer=71;
+constexpr UINT ReadTimeout=72;
+bool awaitingRead=false;
 void discard() {
     for(auto [fmt,handle]:prior) {
         if(!handle) continue;
@@ -65,6 +67,10 @@ bool handle(HWND owner,UINT msg,WPARAM wp) {
         if(!pid)GetWindowThreadProcessId(GetForegroundWindow(),&pid);
         if(render() && waiting && pid==readerPid) {
             sequence=GetClipboardSequenceNumber(); retries=0; SetTimer(owner,Timer,160,nullptr);
+            if(awaitingRead){
+                awaitingRead=false; KillTimer(owner,ReadTimeout);
+                std::cout<<"pasted"<<std::endl;
+            }
         }
         return true;
     }
@@ -72,7 +78,19 @@ bool handle(HWND owner,UINT msg,WPARAM wp) {
         if(GetClipboardOwner()==owner)render();
         CloseClipboard(); return true;
     }
-    if(msg==WM_DESTROYCLIPBOARD){delayed.clear();discard();KillTimer(owner,Timer);return true;}
+    if(msg==WM_DESTROYCLIPBOARD){
+        if(awaitingRead){awaitingRead=false;std::cout<<"clipboard-changed"<<std::endl;}
+        KillTimer(owner,ReadTimeout);
+        delayed.clear();discard();KillTimer(owner,Timer);return true;
+    }
+    if(msg==WM_TIMER && wp==ReadTimeout){
+        KillTimer(owner,ReadTimeout);
+        if(awaitingRead){
+            awaitingRead=false;discard();
+            std::cout<<"copied"<<std::endl;
+        }
+        return true;
+    }
     if(msg==WM_TIMER && wp==Timer){restore(owner);return true;}
     return false;
 }
@@ -103,7 +121,9 @@ std::string deliver(HWND owner,HWND target,DWORD pid,bool automatic,const std::w
     CloseClipboard(); prior=std::move(saved);
     if(!ok){discard();return "paste-error";}
     waiting=automatic; readerPid=pid;
-    if(automatic && GetForegroundWindow()==target && shortcut(terminal))return "pasted";
+    if(automatic && GetForegroundWindow()==target && shortcut(terminal)){
+        awaitingRead=true; SetTimer(owner,ReadTimeout,1500,nullptr); return "pending";
+    }
     discard();return "copied";
 }
 std::wstring fromHex(const std::string& hex) {

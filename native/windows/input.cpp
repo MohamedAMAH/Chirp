@@ -88,8 +88,9 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
             unsigned id; std::string hex;
             if(!(fields>>id>>hex)){emit("paste-error");return 0;}
             const auto text=clipboard::fromHex(hex);
-            emit(text.empty()?"paste-error":clipboard::deliver(owner,destination,destinationPid,
-                 session==id && !focusChanged,text));
+            auto result=text.empty()?"paste-error":clipboard::deliver(owner,destination,destinationPid,
+                 session==id && !focusChanged,text);
+            if(result!="pending")emit(result);
         }
         return 0;
     }

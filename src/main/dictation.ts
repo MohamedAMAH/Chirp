@@ -97,6 +97,9 @@ export function startDictation(shell: Shell, helper = openHelper()) {
       case "pasted":
         reset();
         break;
+      case "clipboard-changed":
+        reset("Clipboard changed");
+        break;
       case "paste-error":
         reset("Paste failed");
         break;
