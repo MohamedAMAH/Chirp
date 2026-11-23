@@ -4,11 +4,14 @@ import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
 import {Shell} from './shell';
 
-export function startDictation(shell:Shell) {
+function openHelper(){
+  const base=app.isPackaged?process.resourcesPath:app.getAppPath();
+  return spawn(path.join(base,app.isPackaged?'chirp-input.exe':'build/chirp-input.exe'),[],
+    {windowsHide:true,stdio:['pipe','pipe','ignore']});
+}
+export function startDictation(shell:Shell,helper=openHelper()) {
   const model=process.env.CHIRP_ASR_MODEL??'qwen';
   const base=app.isPackaged?process.resourcesPath:app.getAppPath();
-  const helper=spawn(path.join(base,app.isPackaged?'chirp-input.exe':'build/chirp-input.exe'),[],
-    {windowsHide:true,stdio:['pipe','pipe','ignore']});
   const worker=utilityProcess.fork(path.join(__dirname,'../speech/worker.js'),[],{stdio:'ignore'});
   let connected=false,loaded=false,closing=false;
   let active:number|undefined, paste:string|undefined, attempts=0;

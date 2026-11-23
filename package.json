@@ -15,7 +15,10 @@
     "models": "node scripts/models.mjs",
     "native": "scripts\\native.cmd",
     "start": "npm run build && npm run native && electron .",
-    "dist": "npm run models && npm run native && npm run build && electron-builder --win nsis --x64"
+    "dist": "npm run models && npm run native && npm run build && electron-builder --win nsis --x64",
+    "compare": "npm run build && node scripts/compare.cjs",
+    "test:capture": "npm run build && electron tests/electron-smoke.cjs",
+    "test:paste": "npm run build && scripts\\native.cmd test && electron tests/paste-smoke.cjs"
   },
   "devDependencies": {
     "@types/node": "24.5.2",

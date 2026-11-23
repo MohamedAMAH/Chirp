@@ -54,6 +54,17 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         std::unique_ptr<std::string> line(reinterpret_cast<std::string*>(lp));
         if(*line=="quit") PostQuitMessage(0);
         if(*line=="arm") armed=true;
+#ifdef CHIRP_TEST_INPUT
+        if(*line=="arm")emit("armed");
+        if(line->rfind("test-hold ",0)==0){
+            const auto expected=std::stoull(line->substr(10));
+            if(reinterpret_cast<UINT_PTR>(GetForegroundWindow())!=expected){emit("test-focus-error");return 0;}
+            KBDLLHOOKSTRUCT key{}; key.vkCode=VK_RMENU; keyboard(HC_ACTION,WM_SYSKEYDOWN,(LPARAM)&key);
+        }
+        if(*line=="test-release"){
+            KBDLLHOOKSTRUCT key{}; key.vkCode=VK_RMENU; keyboard(HC_ACTION,WM_SYSKEYUP,(LPARAM)&key);
+        }
+#endif
         if(line->rfind("paste ",0)==0){
             std::istringstream fields(line->substr(6));
             unsigned id; std::string hex;

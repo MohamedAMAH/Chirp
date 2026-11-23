@@ -53,14 +53,18 @@ void restore(HWND owner) {
     }
     auto saved=std::move(prior);
     if(GetClipboardSequenceNumber()==sequence && EmptyClipboard())
-        for(auto& entry:saved) if(SetClipboardData(entry.first,entry.second))entry.second=nullptr;
+        for(auto& entry:saved) {
+            if(SetClipboardData(entry.first,entry.second))entry.second=nullptr;
+        }
     CloseClipboard(); prior=std::move(saved); discard(); KillTimer(owner,Timer);
 }
 bool handle(HWND owner,UINT msg,WPARAM wp) {
     if(msg==WM_RENDERFORMAT && wp==CF_UNICODETEXT) {
         DWORD pid=0; GetWindowThreadProcessId(GetOpenClipboardWindow(),&pid);
+        // Chromium can call OpenClipboard(nullptr), giving the reader no HWND.
+        if(!pid)GetWindowThreadProcessId(GetForegroundWindow(),&pid);
         if(render() && waiting && pid==readerPid) {
-            sequence=GetClipboardSequenceNumber(); retries=0; SetTimer(owner,Timer,75,nullptr);
+            sequence=GetClipboardSequenceNumber(); retries=0; SetTimer(owner,Timer,160,nullptr);
         }
         return true;
     }
