@@ -30,6 +30,8 @@ linux:
   extraResources:
     - from: build/chirp-input
       to: chirp-input
+    - from: native/linux/chirp-sway.conf
+      to: chirp-sway.conf
 nsis:
   license: native/windows/terms.txt
   oneClick: true

@@ -67,6 +67,12 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     if (closing) return;
     const [event, n, x, y] = line.split(" ");
     switch (event) {
+      case "quit":
+        app.quit();
+        break;
+      case "indicator-mapped":
+        shell.positionSwayIndicator();
+        break;
       case "toggle-mode":
         streaming = !streaming;
         shell.notify(

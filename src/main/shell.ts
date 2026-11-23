@@ -8,6 +8,7 @@ import {
   Tray,
 } from "electron";
 import path from "node:path";
+import { isSway, moveSwayIndicator } from "./sway";
 
 function icon() {
   return nativeImage.createFromPath(
@@ -34,9 +35,9 @@ export class Shell {
       preload: path.join(__dirname, "../preload/index.js"),
     },
   });
-  private readonly shortcut = globalShortcut.register("Control+Q", () =>
-    app.quit(),
-  );
+  private readonly shortcut =
+    isSway() || globalShortcut.register("Control+Q", () => app.quit());
+  private swayPosition?: { x: number; y: number };
   private hideTimer?: NodeJS.Timeout;
   private noticeId = 0;
   private activeNotice?: number;
@@ -83,10 +84,16 @@ export class Shell {
         : { x, y };
     const area = screen.getDisplayNearestPoint(point).workArea;
     const [width] = this.overlay.getSize();
-    this.overlay.setPosition(
-      Math.round(area.x + (area.width - width) / 2),
-      area.y + 24,
-    );
+    const left = Math.round(area.x + (area.width - width) / 2);
+    const top = area.y + 24;
+    if (isSway()) {
+      this.swayPosition = { x: left, y: top };
+      if (this.overlay.isVisible()) this.positionSwayIndicator();
+    } else this.overlay.setPosition(left, top);
+  }
+  positionSwayIndicator() {
+    const point = this.swayPosition;
+    if (point) void moveSwayIndicator(point.x, point.y).catch(() => {});
   }
   show(text: string, brief = false) {
     clearTimeout(this.hideTimer);
@@ -101,7 +108,9 @@ export class Shell {
   }
   private display(text: string, noticeId?: number) {
     this.overlay.webContents.send("indicator", text, noticeId);
-    this.overlay.showInactive();
+    if (isSway()) {
+      if (!this.overlay.isVisible()) this.overlay.show();
+    } else this.overlay.showInactive();
   }
   hide() {
     clearTimeout(this.hideTimer);

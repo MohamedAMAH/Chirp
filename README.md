@@ -1,6 +1,6 @@
 # Chirp
 
-Chirp is a small offline dictation app for Windows x64 and Linux x64 with X11. Hold **Right Alt**, speak, and release it to paste your words into the window where you started. Both speech models run on your laptop. Chirp keeps recordings and transcripts in memory and has no history.
+Chirp is a small offline dictation app for Windows x64 and Linux x64 with X11 or Sway. Hold **Right Alt**, speak, and release it to paste your words into the window where you started. Both speech models run on your laptop. Chirp keeps recordings and transcripts in memory and has no history.
 
 ## Install and dictate
 
@@ -66,7 +66,7 @@ npm start
 
 Run `npm run dist` to produce `dist\Chirp Setup.exe`. It includes the Electron app, the Windows input helper, both models, and their license notices. Git tracks the source, packaging configuration, and dependency lockfile. Build outputs and model weights stay local.
 
-### Linux X11
+### Linux
 
 Build on x64 Linux with Node.js 24 or newer, a C++ compiler, and the development libraries for X11, XInput2, and XTEST. On Debian and Ubuntu those packages are `build-essential`, `libx11-dev`, `libxi-dev`, and `libxtst-dev`.
 
@@ -77,9 +77,19 @@ npm run start:linux
 npm run dist:linux
 ```
 
-The Linux build produces a portable archive in `dist/`. Extract it and run `chirp-dictation` in an X11 session. The archive bundles Electron, the models, and the X11 helper. It uses the system's GTK and X11 libraries. Native Wayland sessions need their own desktop backend.
+The Linux build produces one portable archive in `dist/`. It bundles Electron, the models, the X11 helper, and the Sway configuration. It uses the system's GTK and X11 libraries.
 
-Chirp uses the regular X11 clipboard and leaves the dictated text there after paste. Auto-Enter waits for a clipboard read from the original window. For terminals, Chirp uses **Ctrl+Shift+V**. If your terminal uses another paste binding, paste from the clipboard manually.
+**X11.** Extract the archive and run `chirp-dictation` in your X11 session. Auto-Enter waits for a clipboard read from the original window.
+
+**Sway on Wayland.** Install `wl-clipboard` and `wtype`. Add an include to your Sway config that points to the included `resources/chirp-sway.conf` file. For a source checkout use `native/linux/chirp-sway.conf`.
+
+```text
+include "/absolute/path/to/Chirp/resources/chirp-sway.conf"
+```
+
+Run `swaymsg reload`, then launch `chirp-dictation` in Sway. The included file registers the shortcuts in Sway itself and keeps the indicator from taking keyboard focus. Adjust the bindings in your Sway config if they conflict with existing shortcuts. The bindings stay active while the config is included. Auto-Enter is unavailable on Sway because Chirp cannot verify which app received the clipboard text.
+
+On both Linux backends, Chirp leaves dictated text on the clipboard. For terminals, Chirp uses **Ctrl+Shift+V**. If your terminal uses another paste binding, paste from the clipboard manually.
 
 ## Repository guide
 
@@ -89,7 +99,7 @@ Chirp uses the regular X11 clipboard and leaves the dictated text there after pa
 | `src/preload` and `src/renderer` | Microphone capture, audio worklet, and overlay UI |
 | `src/speech` | Speech worker, shared recognition interface, and model adapters |
 | `native/windows` | Keyboard and foreground-window events, clipboard delivery, and sign-in registration |
-| `native/linux` | X11 hotkeys, focus tracking, clipboard delivery, and Auto-Enter |
+| `native/linux` | X11 input helper and Sway configuration |
 | `scripts` | Model setup, Windows helper build, and model comparison |
 | `tests` | Recognition, clipboard, desktop, and installer checks |
 
