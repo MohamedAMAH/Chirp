@@ -13,6 +13,8 @@ After a successful automatic paste, Chirp restores the previous clipboard conten
 
 Press **Ctrl+B** to toggle **Auto-Enter**. The top indicator briefly shows the setting. Auto-Enter starts off each time Chirp opens. When enabled before dictation, Chirp presses Enter after the original window reads the pasted text. Switching windows leaves the transcript on the clipboard for manual paste.
 
+Press **Ctrl+N** to switch the next dictation between **Streaming** (process phrases while you speak) and **Whole recording** (process the audio on release). Both modes use the currently loaded speech model and paste once on release. The top indicator displays the selected mode. Both shortcuts are global while Chirp runs.
+
 Chirp prepares its audio processing at startup and opens the microphone when you press Right Alt. **Starting** means the microphone is opening. **Listening** appears as soon as audio begins arriving. If your microphone takes a moment to wake up, use **Listening** as your cue to speak.
 
 The shortcut uses normal Windows keyboard events. For example, if you dictate into Notepad, Windows sees Right Alt and Chirp sends the usual paste shortcut to Notepad.

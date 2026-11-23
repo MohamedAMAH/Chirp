@@ -24,7 +24,8 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     { stdio: "ignore" },
   );
   let connected = false,
-    streaming = false,
+    streaming = model === "parakeet-streaming",
+    captureStreaming = false,
     loaded = false,
     closing = false;
   let active: number | undefined,
@@ -35,7 +36,7 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     if (!closing && helper.stdin.writable) helper.stdin.write(command + "\n");
   };
   function clearSession() {
-    if (active !== undefined && streaming && loaded)
+    if (active !== undefined && captureStreaming && loaded)
       worker.postMessage({ init: false, id: active, action: "cancel" });
     active = undefined;
     starting = undefined;
@@ -46,9 +47,17 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     clearSession();
     if (!connected || !loaded || closing) return;
     send("arm");
-    shell.status("Ready · " + model);
+    updateReadyStatus();
     if (message) shell.show(message, true);
     else shell.hide();
+  }
+  function updateReadyStatus() {
+    shell.status(
+      "Ready · " +
+        model.replace(/-streaming$/, "") +
+        " · " +
+        (streaming ? "Streaming" : "Whole recording"),
+    );
   }
   function fail(message: string) {
     clearSession();
@@ -69,6 +78,15 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     if (closing) return;
     const [event, n, x, y] = line.split(" ");
     switch (event) {
+      case "toggle-mode":
+        streaming = !streaming;
+        shell.notify(
+          streaming ? "Mode · Streaming" : "Mode · Whole recording",
+          Number(n),
+          Number(x),
+        );
+        if (loaded && connected) updateReadyStatus();
+        break;
       case "auto-enter":
         shell.notify("Auto-Enter " + n, Number(x), Number(y));
         break;
@@ -82,9 +100,14 @@ export function startDictation(shell: Shell, helper = openHelper()) {
       case "down":
         active = Number(n);
         starting = active;
-        if (streaming)
+        captureStreaming = streaming;
+        if (captureStreaming)
           worker.postMessage({ init: false, id: active, action: "start" });
-        shell.overlay.webContents.send("capture-start", active, streaming);
+        shell.overlay.webContents.send(
+          "capture-start",
+          active,
+          captureStreaming,
+        );
         shell.position(Number(x), Number(y));
         shell.show("Starting");
         break;
@@ -143,7 +166,7 @@ export function startDictation(shell: Shell, helper = openHelper()) {
         id !== active
       )
         return;
-      if (streaming) {
+      if (captureStreaming) {
         worker.postMessage(
           chunk
             ? { init: false, action: "chunk", id, samples }
@@ -165,7 +188,6 @@ export function startDictation(shell: Shell, helper = openHelper()) {
   worker.on("message", (result) => {
     if (closing) return;
     if (result.ready) {
-      streaming = result.streaming === true;
       loaded = true;
       reset();
       return;

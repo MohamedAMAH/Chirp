@@ -17,6 +17,7 @@ unsigned session;
 constexpr UINT Command=WM_APP+1;
 constexpr UINT FinishPaste=WM_APP+2;
 constexpr int ToggleAutoEnter=1;
+constexpr int ToggleMode=2;
 void emit(const std::string& line) { std::cout << line << std::endl; }
 bool pressed(int key) { return (GetAsyncKeyState(key)&0x8000)!=0; }
 void emitNearWindow(const std::string& event, HWND window) {
@@ -62,6 +63,10 @@ void CALLBACK focus(HWINEVENTHOOK,DWORD,HWND window,LONG,LONG,DWORD,DWORD) {
 }
 LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
     if(clipboard::handle(window,msg,wp,pasteRead))return 0;
+    if(msg==WM_HOTKEY && wp==ToggleMode) {
+        emitNearWindow("toggle-mode",GetForegroundWindow());
+        return 0;
+    }
     if(msg==WM_HOTKEY && wp==ToggleAutoEnter) {
         autoEnter=!autoEnter;
         if(!autoEnter)submitThisHold=false;
@@ -154,6 +159,8 @@ int main() {
     emit("connected");
     if(!RegisterHotKey(owner,ToggleAutoEnter,MOD_CONTROL|MOD_NOREPEAT,'B'))
         emitNearWindow("shortcut-unavailable Ctrl+B",GetForegroundWindow());
+    if(!RegisterHotKey(owner,ToggleMode,MOD_CONTROL|MOD_NOREPEAT,'N'))
+        emitNearWindow("shortcut-unavailable Ctrl+N",GetForegroundWindow());
     std::thread([]{
         for(std::string line;std::getline(std::cin,line);) {
             auto cmd=std::make_unique<std::string>(line);

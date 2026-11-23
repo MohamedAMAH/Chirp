@@ -1,4 +1,5 @@
 import { parakeet } from "./parakeet";
+import { BufferedDictation } from "./buffered-dictation";
 import { parakeetStreaming } from "./parakeet-streaming";
 import { qwen } from "./qwen";
 import type { SpeechAdapter, SpeechStream } from "./recognizer";
@@ -26,8 +27,10 @@ process.parentPort.on("message", ({ data }: { data: Job }) => {
       });
     } else if ("action" in data) {
       if (data.action === "start") {
-        if (!adapter.startStream) throw Error("Streaming unavailable");
-        current = { id: data.id, stream: adapter.startStream() };
+        current = {
+          id: data.id,
+          stream: adapter.startStream?.() ?? new BufferedDictation(adapter),
+        };
       } else if (current && data.id === current.id) {
         if (data.action === "chunk") {
           current.stream.accept(data.samples);
