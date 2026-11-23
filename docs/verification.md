@@ -16,6 +16,18 @@ On two synthetic English coding prompts (3.11 s and 15.25 s), both adapters capt
 
 In a separate browser test, a 6.5-second hold fed prerecorded speech through the microphone pipeline. Time from release to visible text was **1.56 s for Qwen** and **0.39 s for Parakeet** in one run. This includes the final audio transfer, recognition, and Windows paste. The recognition-only times in the table exclude microphone capture and paste.
 
+### Timestamps and streaming
+
+Both Chirp adapters run on the CPU after you release Right Alt. They return plain text for pasting. On the same German recording, the bundled sherpa-onnx runtime returned 38 token timestamps for Parakeet and zero for Qwen. A token can be part of a word.
+
+| Capability | Parakeet TDT 0.6B v3 | Qwen3-ASR 0.6B |
+| --- | --- | --- |
+| Timestamps in the publisher’s toolkit | NeMo can return character, word, and segment timings when requested. | Offline word or character timing uses a separate forced-alignment model. Chirp ships only the recognizer. |
+| Transcribing while someone is speaking | NVIDIA documents buffered inference with overlapping chunks. Its example uses two seconds of future context. | Qwen offers streaming through vLLM. Its streaming API handles one recording at a time and returns text without timestamps. |
+| Languages | 25 European languages, including English and German. Arabic is outside its supported set. | 30 languages, including English, German, and Arabic, plus 22 Chinese dialects. Supports language identification. |
+
+The publishers describe the available modes and their runtime requirements in the [NVIDIA Parakeet model card](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and the [Qwen inference guide](https://github.com/QwenLM/Qwen3-ASR#streaming-inference).
+
 ### Repeat the comparison
 
 After `npm ci` and `npm run models`, run the following from the repository root in PowerShell. The comparison prints one JSON record per model and clip, including the transcript and elapsed milliseconds. The reference text for the language samples is in `models/qwen/test_wavs/transcript.txt`.
