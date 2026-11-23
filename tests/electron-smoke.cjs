@@ -5,7 +5,6 @@ const { once } = require("node:events");
 const root = path.resolve(__dirname, "..");
 const wave = path.join(root, "models/parakeet/test_wavs/en.wav");
 app.commandLine.appendSwitch("use-fake-device-for-media-stream");
-app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
 app.commandLine.appendSwitch("use-file-for-fake-audio-capture", wave);
 app.setPath("userData", path.join(root, "build/smoke-profile"));
 app.setAppPath(root);
@@ -23,6 +22,10 @@ app
     const { Shell } = require("../out/main/shell");
     const shell = new Shell();
     await shell.load();
+    const session = shell.overlay.webContents.session;
+    session.setPermissionRequestHandler((_contents, permission, callback) =>
+      callback(permission === "media"),
+    );
     if (shell.overlay.isFocusable()) throw Error("Overlay can steal focus.");
     shell.show("Listening");
     if (
@@ -39,7 +42,8 @@ app
       root: path.join(root, "models"),
     });
     if (!(await ready)[0].ready) throw Error("Model unavailable.");
-    ipcMain.once("mic-error", () => end(1, "Microphone pipeline failed."));
+    const unexpectedMicError = () => end(1, "Microphone pipeline failed.");
+    ipcMain.once("mic-error", unexpectedMicError);
     const audio = once(ipcMain, "audio");
     shell.overlay.webContents.send("capture-start", 1);
     await new Promise((r) => setTimeout(r, 6500));
@@ -56,11 +60,20 @@ app
     worker.postMessage({ init: false, id, samples });
     const [reply] = await result;
     if (!reply.text) throw Error("Empty transcript.");
+    const elapsed = Math.round(performance.now() - released);
+    ipcMain.removeListener("mic-error", unexpectedMicError);
+    session.setPermissionCheckHandler(() => false);
+    session.setPermissionRequestHandler((_contents, _permission, callback) =>
+      callback(false),
+    );
+    const denial = once(ipcMain, "mic-error");
+    shell.overlay.webContents.send("capture-start", 2);
+    if ((await denial)[1] !== 2) throw Error("Missing microphone denial.");
     end(
       0,
-      "Capture, release and offline recognition passed in " +
-        Math.round(performance.now() - released) +
-        " ms after release.",
+      "Capture, offline recognition and denied microphone access passed. " +
+        elapsed +
+        " ms from release to recognition.",
     );
   })
   .catch((error) => end(1, error.message));
