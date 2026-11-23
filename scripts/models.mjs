@@ -43,9 +43,13 @@ for (const [name, bundle, digest] of catalog) {
         throw Error("Checksum mismatch for " + name);
       await fs.rename(tmp, archive);
     }
-    execFileSync("tar.exe", ["-xf", archive, "-C", stage], {
-      stdio: "inherit",
-    });
+    execFileSync(
+      process.platform === "win32" ? "tar.exe" : "tar",
+      ["-xf", archive, "-C", stage],
+      {
+        stdio: "inherit",
+      },
+    );
     await fs.cp(path.join(stage, bundle), path.join(root, "models", name), {
       recursive: true,
     });

@@ -10,17 +10,26 @@ files:
 asarUnpack:
   - node_modules/sherpa-onnx*/**/*
 extraResources:
-  - from: build/chirp-input.exe
-    to: chirp-input.exe
   - from: models
     to: models
     filter: ["**/*", "!**/test_wavs/**/*"]
-extraFiles:
-  - from: native/windows/terms.txt
-    to: Chirp Terms.txt
 win:
   icon: assets/chirp.ico
   target: nsis
+  extraResources:
+    - from: build/chirp-input.exe
+      to: chirp-input.exe
+  extraFiles:
+    - from: native/windows/terms.txt
+      to: Chirp Terms.txt
+linux:
+  target:
+    - tar.gz
+  icon: assets/tray.png
+  category: Utility
+  extraResources:
+    - from: build/chirp-input
+      to: chirp-input
 nsis:
   license: native/windows/terms.txt
   oneClick: true

@@ -1,6 +1,6 @@
 # Chirp
 
-Chirp is a small Windows x64 dictation app. Hold **Right Alt**, speak, and release it to paste your words into the window where you started. Both speech models run on your laptop. Chirp keeps recordings and transcripts in memory and has no history.
+Chirp is a small offline dictation app for Windows x64 and Linux x64 with X11. Hold **Right Alt**, speak, and release it to paste your words into the window where you started. Both speech models run on your laptop. Chirp keeps recordings and transcripts in memory and has no history.
 
 ## Install and dictate
 
@@ -11,7 +11,7 @@ Chirp is a small Windows x64 dictation app. Hold **Right Alt**, speak, and relea
 
 After a successful automatic paste, Chirp restores the previous clipboard contents when possible. The **Copied** indicator means the transcript is available for manual paste. Using Right Alt in a key combination cancels that recording.
 
-Press **Ctrl+B** to toggle **Auto-Enter**. The top indicator briefly shows the setting. Auto-Enter starts off each time Chirp opens. When enabled before dictation, Chirp presses Enter after the original window reads the pasted text. Switching windows leaves the transcript on the clipboard for manual paste.
+Press **Ctrl+B** to toggle **Auto-Enter**. The top indicator briefly shows the setting. Auto-Enter starts off each time Chirp opens. When enabled before dictation, Chirp waits 700 ms after the original window reads the pasted text, then presses Enter. Switching windows leaves the transcript on the clipboard for manual paste.
 
 Press **Ctrl+N** to switch the next dictation between **Streaming** (process phrases while you speak) and **Whole recording** (process the audio on release). Both modes use the currently loaded speech model and paste once on release. The top indicator displays the selected mode. Both shortcuts are global while Chirp runs.
 
@@ -66,6 +66,21 @@ npm start
 
 Run `npm run dist` to produce `dist\Chirp Setup.exe`. It includes the Electron app, the Windows input helper, both models, and their license notices. Git tracks the source, packaging configuration, and dependency lockfile. Build outputs and model weights stay local.
 
+### Linux X11
+
+Build on x64 Linux with Node.js 24 or newer, a C++ compiler, and the development libraries for X11, XInput2, and XTEST. On Debian and Ubuntu those packages are `build-essential`, `libx11-dev`, `libxi-dev`, and `libxtst-dev`.
+
+```sh
+npm ci
+npm run models
+npm run start:linux
+npm run dist:linux
+```
+
+The Linux build produces a portable archive in `dist/`. Extract it and run `chirp-dictation` in an X11 session. The archive bundles Electron, the models, and the X11 helper. It uses the system's GTK and X11 libraries. Native Wayland sessions need their own desktop backend.
+
+Chirp uses the regular X11 clipboard and leaves the dictated text there after paste. Auto-Enter waits for a clipboard read from the original window. For terminals, Chirp uses **Ctrl+Shift+V**. If your terminal uses another paste binding, paste from the clipboard manually.
+
 ## Repository guide
 
 | Directory | Responsibility |
@@ -74,6 +89,7 @@ Run `npm run dist` to produce `dist\Chirp Setup.exe`. It includes the Electron a
 | `src/preload` and `src/renderer` | Microphone capture, audio worklet, and overlay UI |
 | `src/speech` | Speech worker, shared recognition interface, and model adapters |
 | `native/windows` | Keyboard and foreground-window events, clipboard delivery, and sign-in registration |
+| `native/linux` | X11 hotkeys, focus tracking, clipboard delivery, and Auto-Enter |
 | `scripts` | Model setup, Windows helper build, and model comparison |
 | `tests` | Recognition, clipboard, desktop, and installer checks |
 

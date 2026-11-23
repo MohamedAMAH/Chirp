@@ -2,7 +2,7 @@
   "name": "chirp-dictation",
   "private": true,
   "version": "0.1.0",
-  "description": "Offline Windows push-to-talk dictation",
+  "description": "Offline push-to-talk dictation for Windows and Linux X11",
   "main": "out/main/index.js",
   "engines": {
     "node": ">=24"
@@ -15,7 +15,9 @@
     "models": "node scripts/models.mjs",
     "native": "scripts\\native.cmd",
     "start": "npm run build && npm run native && electron .",
+    "start:linux": "npm run build && sh scripts/native-linux.sh && electron .",
     "dist": "npm run models && npm run native && npm run build && electron-builder --win nsis --x64",
+    "dist:linux": "npm run models && sh scripts/native-linux.sh && npm run build && electron-builder --linux tar.gz --x64 --config.compression=store",
     "compare": "npm run build && node scripts/compare.cjs",
     "test:capture": "npm run build && electron tests/electron-smoke.cjs",
     "test:paste": "npm run build && scripts\\native.cmd test && electron tests/paste-smoke.cjs",

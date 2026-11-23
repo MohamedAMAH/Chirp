@@ -1,21 +1,10 @@
 import { app, ipcMain, utilityProcess } from "electron";
 import path from "node:path";
-import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { Shell } from "./shell";
+import { openDesktopHelper } from "./desktop";
 
-function openHelper() {
-  const base = app.isPackaged ? process.resourcesPath : app.getAppPath();
-  return spawn(
-    path.join(
-      base,
-      app.isPackaged ? "chirp-input.exe" : "build/chirp-input.exe",
-    ),
-    [],
-    { windowsHide: true, stdio: ["pipe", "pipe", "ignore"] },
-  );
-}
-export function startDictation(shell: Shell, helper = openHelper()) {
+export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   const model = process.env.CHIRP_ASR_MODEL ?? "qwen";
   const base = app.isPackaged ? process.resourcesPath : app.getAppPath();
   const worker = utilityProcess.fork(
@@ -68,11 +57,11 @@ export function startDictation(shell: Shell, helper = openHelper()) {
   helper.stdin.on("error", () => {});
   helper.on("error", () => {
     connected = false;
-    fail("Windows helper unavailable");
+    fail("Input helper unavailable");
   });
   helper.on("exit", () => {
     connected = false;
-    fail("Windows helper stopped");
+    fail("Input helper stopped");
   });
   createInterface({ input: helper.stdout }).on("line", (line) => {
     if (closing) return;

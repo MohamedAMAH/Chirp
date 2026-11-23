@@ -77,9 +77,11 @@ export class Shell {
     );
   }
   position(x: number, y: number) {
-    const area = screen.getDisplayNearestPoint(
-      screen.screenToDipPoint({ x, y }),
-    ).workArea;
+    const point =
+      process.platform === "win32"
+        ? screen.screenToDipPoint({ x, y })
+        : { x, y };
+    const area = screen.getDisplayNearestPoint(point).workArea;
     const [width] = this.overlay.getSize();
     this.overlay.setPosition(
       Math.round(area.x + (area.width - width) / 2),
