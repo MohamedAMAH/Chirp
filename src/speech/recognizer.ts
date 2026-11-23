@@ -1,5 +1,10 @@
 export interface SpeechAdapter {
   transcribe(samples: Float32Array, sampleRate: number): string;
+  startStream?(): SpeechStream;
+}
+export interface SpeechStream {
+  accept(samples: Float32Array): string | undefined;
+  finish(): string;
 }
 interface Stream {
   acceptWaveform(audio: { samples: Float32Array; sampleRate: number }): void;
@@ -32,15 +37,19 @@ export function localRecognizer(
     },
   };
 }
-export function* segments(samples: Float32Array, rate: number) {
+export function* segments(
+  samples: Float32Array,
+  rate: number,
+  maxSeconds = 18,
+) {
   let offset = 0;
-  while (samples.length - offset > 18 * rate) {
+  while (samples.length - offset > maxSeconds * rate) {
     let best = Infinity,
-      end = offset + 18 * rate;
+      end = offset + maxSeconds * rate;
     const step = Math.max(1, Math.floor(rate / 20));
     for (
-      let i = offset + 14 * rate;
-      i + step <= offset + 18 * rate;
+      let i = offset + (maxSeconds - 4) * rate;
+      i + step <= offset + maxSeconds * rate;
       i += step
     ) {
       let energy = 0;
