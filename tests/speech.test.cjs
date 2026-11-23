@@ -3,13 +3,13 @@ const assert=require('node:assert/strict');
 const {segments}=require('../out/speech/recognizer');
 test('long dictation keeps every sample across quiet boundaries',()=>{
   const rate=16000,audio=new Float32Array(65*rate).fill(.3);
-  audio.fill(0,25*rate,26*rate);
+  audio.fill(0,15*rate,16*rate);
   const parts=[...segments(audio,rate)];
-  assert.ok(parts[0].length>=25*rate && parts[0].length<=26*rate);
+  assert.ok(parts[0].length>=15*rate && parts[0].length<=16*rate);
   let total=0;
   for(const part of parts){
     assert.equal(part.byteOffset,total*4);
-    assert.ok(part.length<=28*rate);total+=part.length;
+    assert.ok(part.length<=18*rate);total+=part.length;
   }
   assert.equal(total,audio.length);
 });

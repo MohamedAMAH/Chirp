@@ -22,10 +22,10 @@ export function localRecognizer(config:Record<string,unknown>,featureDim=80):Spe
 }
 export function* segments(samples:Float32Array,rate:number){
   let offset=0;
-  while(samples.length-offset>28*rate){
-    let best=Infinity,end=offset+28*rate;
+  while(samples.length-offset>18*rate){
+    let best=Infinity,end=offset+18*rate;
     const step=Math.max(1,Math.floor(rate/20));
-    for(let i=offset+23*rate;i+step<=offset+28*rate;i+=step){
+    for(let i=offset+14*rate;i+step<=offset+18*rate;i+=step){
       let energy=0;
       for(let j=i;j<i+step;j++)energy+=samples[j]**2;
       if(energy<=best){best=energy;end=i+Math.floor(step/2);}
