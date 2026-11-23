@@ -6,7 +6,7 @@ Chirp is a small Windows x64 dictation app. Hold **Right Alt**, speak, and relea
 
 1. Open `dist\Chirp Setup.exe` and review the terms. Choose **I Agree** to install Chirp and both models for your Windows account. Chirp opens when setup finishes and every time you sign in to Windows. You can read the terms again in `Chirp Terms.txt` next to `Chirp.exe`. The installer is unsigned.
 2. Find the Chirp icon in the system tray, near the clock. Its tooltip shows when the model is ready. Chirp uses the default Windows microphone.
-3. Click a text field, hold **Right Alt**, and speak. A small indicator appears at the bottom center of that screen. Release the key and keep the same window focused. Chirp pastes the result and leaves you in control of sending it.
+3. Click a text field, hold **Right Alt**, and speak. A small indicator appears at the top center of that screen. Release the key and keep the same window focused. Chirp pastes the result and leaves you in control of sending it.
 4. If you switch windows, Chirp leaves the words on the clipboard. Paste them wherever you want. This also applies if you switch away and then return before transcription finishes.
 
 After a successful automatic paste, Chirp restores the previous clipboard contents when possible. The **Copied** indicator means the transcript is available for manual paste. Using Right Alt in a key combination cancels that recording.

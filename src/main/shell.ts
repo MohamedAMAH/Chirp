@@ -71,9 +71,10 @@ export class Shell {
     const area = screen.getDisplayNearestPoint(
       screen.screenToDipPoint({ x, y }),
     ).workArea;
+    const [width] = this.overlay.getSize();
     this.overlay.setPosition(
-      Math.round(area.x + (area.width - 220) / 2),
-      area.y + area.height - 64,
+      Math.round(area.x + (area.width - width) / 2),
+      area.y + 24,
     );
   }
   show(text: string, brief = false) {
