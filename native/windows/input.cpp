@@ -55,6 +55,18 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         if(*line=="quit") PostQuitMessage(0);
         if(*line=="arm") armed=true;
 #ifdef CHIRP_TEST_INPUT
+        if(line->rfind("test-quit ",0)==0){
+            if(reinterpret_cast<UINT_PTR>(GetForegroundWindow())!=std::stoull(line->substr(10))){
+                emit("test-focus-error");return 0;
+            }
+            INPUT keys[4]{};
+            WORD codes[]={VK_CONTROL,'Q','Q',VK_CONTROL};
+            for(int i=0;i<4;i++){
+                keys[i].type=INPUT_KEYBOARD;keys[i].ki.wVk=codes[i];
+                if(i>=2)keys[i].ki.dwFlags=KEYEVENTF_KEYUP;
+            }
+            emit(SendInput(4,keys,sizeof(INPUT))==4?"quit-sent":"test-quit-error");
+        }
         static std::vector<clipboard::Item> original;
         if(*line=="test-backup"){
             clipboard::discard();
