@@ -4,6 +4,7 @@ export function qwen(root: string) {
   const file = (name: string) => path.join(root, "qwen", name);
   return localRecognizer({
     qwen3Asr: {
+      maxNewTokens: 512,
       convFrontend: file("conv_frontend.onnx"),
       encoder: file("encoder.int8.onnx"),
       decoder: file("decoder.int8.onnx"),
