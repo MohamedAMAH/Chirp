@@ -16,7 +16,9 @@ body {
   margin: 0;
   height: 100vh;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: start;
+  padding-top: 3px;
 }
 
 main {

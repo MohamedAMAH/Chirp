@@ -157,7 +157,19 @@ window.addEventListener("DOMContentLoaded", () => {
   const indicator = document.querySelector("main")!;
   const output = document.querySelector("output")!;
   meterBars = document.querySelectorAll(".wave i");
-  ipcRenderer.on("indicator", (_event, text: string) => {
+  let motion: Animation | undefined;
+  ipcRenderer.on("indicator", (_event, text: string, noticeId?: number) => {
+    const inProgress = motion?.playState === "running";
+    const style = getComputedStyle(indicator);
+    const offset = matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "none"
+      : "translateY(8px)";
+    const from = {
+      opacity: inProgress ? style.opacity : "0",
+      transform: inProgress ? style.transform : offset,
+    };
+    motion?.cancel();
+    motion = undefined;
     indicator.dataset.state = [
       "Starting",
       "Listening",
@@ -170,5 +182,18 @@ window.addEventListener("DOMContentLoaded", () => {
       meterBars.forEach((bar) => bar.style.removeProperty("--level"));
     }
     output.textContent = text;
+    if (noticeId !== undefined) {
+      const visible = { opacity: 1, transform: "translateY(0)" };
+      motion = indicator.animate(
+        [
+          { ...from, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+          { ...visible, offset: 0.14 },
+          { ...visible, offset: 0.87, easing: "ease-in" },
+          { opacity: 0, transform: offset },
+        ],
+        { duration: 1550, fill: "both" },
+      );
+      motion.onfinish = () => ipcRenderer.send("notice-finished", noticeId);
+    }
   });
 });

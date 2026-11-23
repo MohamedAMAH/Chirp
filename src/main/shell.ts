@@ -18,7 +18,7 @@ export class Shell {
   readonly tray = new Tray(icon());
   readonly overlay = new BrowserWindow({
     width: 220,
-    height: 40,
+    height: 48,
     show: false,
     focusable: false,
     transparent: true,
@@ -38,10 +38,17 @@ export class Shell {
     app.quit(),
   );
   private hideTimer?: NodeJS.Timeout;
-  private noticeTimer?: NodeJS.Timeout;
+  private noticeId = 0;
+  private activeNotice?: number;
   private indicator?: string;
   constructor() {
     this.overlay.setIgnoreMouseEvents(true);
+    this.overlay.webContents.ipc.on("notice-finished", (_event, id: number) => {
+      if (id !== this.activeNotice) return;
+      this.activeNotice = undefined;
+      if (this.indicator) this.display(this.indicator);
+      else this.overlay.hide();
+    });
     this.status("Loading");
     this.overlay.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     this.overlay.webContents.on("will-navigate", (event) =>
@@ -82,26 +89,21 @@ export class Shell {
   show(text: string, brief = false) {
     clearTimeout(this.hideTimer);
     this.indicator = text;
-    if (!this.noticeTimer) this.display(text);
+    if (this.activeNotice === undefined) this.display(text);
     if (brief) this.hideTimer = setTimeout(() => this.hide(), 1600);
   }
   notify(text: string, x: number, y: number) {
-    clearTimeout(this.noticeTimer);
     this.position(x, y);
-    this.display(text);
-    this.noticeTimer = setTimeout(() => {
-      this.noticeTimer = undefined;
-      if (this.indicator) this.display(this.indicator);
-      else this.overlay.hide();
-    }, 1400);
+    this.activeNotice = ++this.noticeId;
+    this.display(text, this.activeNotice);
   }
-  private display(text: string) {
-    this.overlay.webContents.send("indicator", text);
+  private display(text: string, noticeId?: number) {
+    this.overlay.webContents.send("indicator", text, noticeId);
     this.overlay.showInactive();
   }
   hide() {
     clearTimeout(this.hideTimer);
     this.indicator = undefined;
-    if (!this.noticeTimer) this.overlay.hide();
+    if (this.activeNotice === undefined) this.overlay.hide();
   }
 }
