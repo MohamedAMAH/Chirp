@@ -14,6 +14,9 @@ $exe = Join-Path $target 'Chirp.exe'
 if (!(Test-Path -LiteralPath $exe)) { throw 'The test install path was not honored.' }
 try {
     if ((Get-ItemProperty $runKey).Chirp -ne ('"' + $exe + '"')) { throw 'Wrong sign-in entry.' }
+    $installedTerms = Get-FileHash -LiteralPath (Join-Path $target 'Chirp Terms.txt')
+    $setupTerms = Get-FileHash -LiteralPath (Join-Path $root 'native\windows\terms.txt')
+    if ($installedTerms.Hash -ne $setupTerms.Hash) { throw 'Installed terms differ from the setup terms.' }
     foreach ($name in @('qwen\encoder.int8.onnx','parakeet\encoder.int8.onnx')) {
         if ((Get-FileHash "$target\resources\models\$name").Hash -ne (Get-FileHash "$root\models\$name").Hash) {
             throw "Installed model differs: $name"
