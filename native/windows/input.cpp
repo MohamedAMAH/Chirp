@@ -55,6 +55,24 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         if(*line=="quit") PostQuitMessage(0);
         if(*line=="arm") armed=true;
 #ifdef CHIRP_TEST_INPUT
+        static std::vector<clipboard::Item> original;
+        if(*line=="test-backup"){
+            clipboard::discard();
+            if(!OpenClipboard(owner)){emit("test-backup-error");return 0;}
+            const bool ok=clipboard::save();
+            CloseClipboard();
+            if(ok)original=std::move(clipboard::prior);
+            clipboard::discard(); emit(ok?"backup":"test-backup-error");
+        }
+        if(*line=="test-restore"){
+            if(GetClipboardOwner()!=owner){emit("test-owner-changed");return 0;}
+            clipboard::discard();
+            clipboard::prior=std::move(original);
+            clipboard::sequence=GetClipboardSequenceNumber();
+            clipboard::waiting=true;clipboard::restore(owner);
+            emit("restored");
+        }
+        if(*line=="test-private")emit(IsClipboardFormatAvailable(RegisterClipboardFormatW(L"ExcludeClipboardContentFromMonitorProcessing"))?"private":"test-privacy-error");
         if(*line=="arm")emit("armed");
         if(line->rfind("test-hold ",0)==0){
             const auto expected=std::stoull(line->substr(10));

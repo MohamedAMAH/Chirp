@@ -79,6 +79,45 @@ app
     await wait(550);
     if ((await clipboard.readText()) !== prior)
       throw Error("The previous clipboard text was not restored.");
+    function reply(command, expected) {
+      return new Promise((resolve, reject) => {
+        const listener = (value) => {
+          if (value !== expected && !value.startsWith("test-")) return;
+          lines.off("line", listener);
+          if (value === expected) resolve();
+          else reject(Error(value));
+        };
+        lines.on("line", listener);
+        if (command) helper.stdin.write(command + "\n");
+      });
+    }
+    await reply("test-backup", "backup");
+    const other = new BrowserWindow({ show: false, width: 260, height: 120 });
+    try {
+      helper.stdin.write("test-hold " + hwnd + "\n");
+      await wait(2500);
+      other.show();
+      other.focus();
+      await wait(200);
+      editor.focus();
+      await wait(200);
+      await reply("test-release", "copied");
+      if (!(await clipboard.readText()).trim())
+        throw Error("Fallback transcript is empty.");
+      await reply("test-private", "private");
+      if (
+        (await editor.webContents.executeJavaScript(
+          'document.querySelector("textarea").value',
+        )) !== text
+      )
+        throw Error("Focus-switch transcript was pasted.");
+    } finally {
+      await reply("test-restore", "restored");
+      other.destroy();
+    }
+    console.log(
+      "Focus-away-and-back fallback and clipboard privacy marker passed.",
+    );
     finish(
       0,
       "Paste into the browser editor and clipboard restoration passed. Release to paste: " +
