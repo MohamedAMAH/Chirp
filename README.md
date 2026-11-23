@@ -11,7 +11,7 @@ Chirp is a small offline dictation app for Windows x64 and Linux x64 with X11. H
 
 After a successful automatic paste, Chirp restores the previous clipboard contents when possible. The **Copied** indicator means the transcript is available for manual paste. Using Right Alt in a key combination cancels that recording.
 
-Press **Ctrl+B** to toggle **Auto-Enter**. The top indicator briefly shows the setting. Auto-Enter starts off each time Chirp opens. When enabled before dictation, Chirp waits 700 ms after the original window reads the pasted text, then presses Enter. Switching windows leaves the transcript on the clipboard for manual paste.
+Press **Ctrl+B** to toggle **Auto-Enter**. The top indicator briefly shows the setting. Auto-Enter starts off each time Chirp opens. When enabled before dictation, Chirp waits 600 ms after the original window reads the pasted text, then presses Enter. Switching windows leaves the transcript on the clipboard for manual paste.
 
 Press **Ctrl+N** to switch the next dictation between **Streaming** (process phrases while you speak) and **Whole recording** (process the audio on release). Both modes use the currently loaded speech model and paste once on release. The top indicator displays the selected mode. Both shortcuts are global while Chirp runs.
 

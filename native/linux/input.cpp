@@ -151,7 +151,7 @@ class Input {
             pasteDeadline = {};
             if (submit && autoEnter) {
                 enterPending = true;
-                enterDeadline = Clock::now() + 700ms;
+                enterDeadline = Clock::now() + 600ms;
             } else emit("pasted");
         }
     }

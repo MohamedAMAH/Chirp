@@ -17,7 +17,7 @@ bool waitingToSubmit;
 unsigned session;
 constexpr UINT Command=WM_APP+1;
 constexpr UINT_PTR AutoEnterTimer=73;
-constexpr UINT PasteSettleMs=700;
+constexpr UINT PasteSettleMs=600;
 constexpr int ToggleAutoEnter=1;
 constexpr int ToggleMode=2;
 void emit(const std::string& line) { std::cout << line << std::endl; }
