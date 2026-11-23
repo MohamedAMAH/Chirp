@@ -1,83 +1,84 @@
 <div align="center">
 
-<img src="assets/tray.png" alt="Chirp" width="96" />
-
 # Chirp
 
-### Offline push-to-talk dictation for Windows and Linux. Hold a key, speak, release.
-
-[**Install**](#installation) • [**Usage**](#usage) • [**Speech Models**](#speech-models) • [**Build from Source**](#build-from-source) • [**How It Works**](#how-it-works) • [**Performance**](#performance) • [**Contributing**](#contribution-and-support)
+**Offline push-to-talk dictation. Hold a key, speak, release, and your words appear.**
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
-![Windows](https://img.shields.io/badge/Windows-x64-0078D4?logo=windows&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-X11%20%7C%20Sway-FCC624?logo=linux&logoColor=black)
+![Platforms](https://img.shields.io/badge/platform-Windows%20x64%20%7C%20Linux%20X11%20%7C%20Sway-lightgrey)
 ![Node](https://img.shields.io/badge/node-%E2%89%A524-339933?logo=node.js&logoColor=white)
 ![Electron](https://img.shields.io/badge/electron-45.4.1-47848F?logo=electron&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/typescript-5.9.3-3178C6?logo=typescript&logoColor=white)
 ![Offline](https://img.shields.io/badge/runs-100%25%20offline-success)
 
+[Features](#features) · [Quick start](#quick-start) · [Usage](#usage) · [Models](#speech-models) · [Build](#build-from-source) · [How it works](#how-it-works) · [Contributing](#contributing)
+
 </div>
 
-Chirp is a small tray app that turns speech into text anywhere you can type. Hold **Right Alt**, speak, and release. Chirp transcribes on your own CPU and pastes the text into the window where you started. Recordings and transcripts stay in memory, and Chirp keeps no history.
+---
 
-- **Fully Offline**: Both speech models run locally on the CPU through [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx). Chirp makes no network requests while running.
-- **Works Everywhere**: The shortcut is global and pastes into whichever text field had focus, including terminals (`Ctrl+Shift+V`).
-- **Two Speech Models**: Qwen3-ASR 0.6B for 30 languages (default) and Parakeet TDT 0.6B v3 for faster results in 25 European languages.
-- **Safe Paste**: If you switch windows, Chirp leaves the text on the clipboard instead of pasting into the wrong place. On Windows it restores your previous clipboard after a successful paste.
-- **Streaming or Whole Recording**: Process phrases while you speak, or process the audio on release. Switch with `Ctrl+N`.
-- **Auto-Enter**: Optionally press Enter after pasting. Toggle with `Ctrl+B`.
+Chirp is a small tray app. Hold **Right Alt**, speak, and release. Chirp transcribes your speech on your CPU and tries to paste the text into the window where you started. Recordings and transcripts are processed locally, and Chirp keeps no history.
 
-Check out the [Shortcuts](#shortcuts) and [Speech Models](#speech-models) for a quick reference.
+## Features
 
-## Installation
+- **Fully offline.** Both speech models run locally on the CPU through [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx). Building from source requires downloading dependencies and model files.
+- **Global push-to-talk.** Start a dictation from another app and paste into its focused text field when the app accepts the paste shortcut.
+- **Two speech models.** Qwen3-ASR 0.6B (multilingual, the default) and Parakeet TDT 0.6B v3 (faster, 25 European languages).
+- **Streaming or whole-recording mode.** Press `Ctrl+N` to choose how the next dictation is processed. Both modes try to paste once on release.
+- **Auto-Enter.** Press `Ctrl+B` on Windows or X11 to toggle pressing Enter after a confirmed paste.
+- **Safe paste.** If you switch windows, Chirp leaves the text on the clipboard instead of pasting into the wrong place.
+- **Clipboard restore.** After a successful paste on Windows, Chirp restores your previous clipboard contents when possible.
+- **Terminal-aware.** Uses `Ctrl+Shift+V` for Windows Terminal and recognized Linux terminals.
+- **Private by design.** No account, no telemetry, no transcript history.
 
-| Platform | Package | Notes |
+## Supported platforms
+
+| Platform | Status | Notes |
 | --- | --- | --- |
-| Windows 10/11 x64 | `Chirp Setup.exe` | Per-user install, starts at sign-in. The installer is unsigned. |
-| Linux x64, X11 | Portable `tar.gz` | Uses XInput2 and XTEST. |
-| Linux x64, Sway (Wayland) | Portable `tar.gz` | Needs `wl-clipboard` and `wtype`. Auto-Enter is unavailable. |
+| Windows x64 | Supported | NSIS installer, starts at sign-in. Tested on Windows 11. The installer is unsigned. |
+| Linux x64, X11 | Supported | Portable `tar.gz`. Uses XInput2 and XTEST. |
+| Linux x64, Sway (Wayland) | Supported | Needs `wl-clipboard` and `wtype`. Auto-Enter is unavailable. |
+| Other Wayland compositors, macOS | Not supported | |
 
-Other Wayland compositors and macOS are not supported.
+## Quick start
 
 ### Windows
 
-1. Run `Chirp Setup.exe`, review the terms, and choose **I Agree**. Setup installs Chirp and both models for your account, then launches Chirp.
-2. Find the Chirp icon in the system tray. Its tooltip shows when the model is ready.
+1. Run `Chirp Setup.exe`, review the terms, and choose **I Agree**. Setup installs Chirp and both models for your account and launches Chirp.
+2. Look for the Chirp icon in the system tray. Its tooltip shows when the model is ready.
 3. Click a text field, hold **Right Alt**, speak, and release.
 
 To remove Chirp, use **Settings → Apps → Installed apps**.
 
 ### Linux (X11)
 
-Extract the archive and run `chirp-dictation` in your X11 session.
+Extract the archive and run `chirp-dictation` inside your X11 session.
 
 ### Linux (Sway)
 
-Install `wl-clipboard` and `wtype`, then include the bundled configuration in your Sway config:
+1. Install `wl-clipboard` and `wtype`.
+2. Include the bundled configuration in your Sway config:
 
-```text
-include "/absolute/path/to/Chirp/resources/chirp-sway.conf"
-```
+   ```text
+   include "/absolute/path/to/Chirp/resources/chirp-sway.conf"
+   ```
 
-From a source checkout, use `native/linux/chirp-sway.conf`. Run `swaymsg reload`, then launch `chirp-dictation`. The included file registers the shortcuts in Sway itself and keeps the indicator from taking keyboard focus. Adjust the bindings if they conflict with your own.
+   From a source checkout, use `native/linux/chirp-sway.conf`.
+3. Run `swaymsg reload`, then launch `chirp-dictation`.
+
+The included file registers the shortcuts in Sway itself and keeps the indicator from taking keyboard focus. The bindings stay active while the file is included. Adjust them if they conflict with your own.
 
 ## Usage
-
-Click a text field, hold **Right Alt**, speak, and release. Chirp uses the default system microphone and pastes into the window you started in.
-
-### Shortcuts
 
 | Shortcut | Action |
 | --- | --- |
 | Hold **Right Alt** | Record. Release to transcribe and paste. |
-| Right Alt + any other key | Cancel the current recording. |
-| `Ctrl+B` | Toggle **Auto-Enter**. It starts off on every launch and is unavailable on Sway. |
+| `Ctrl+B` | Toggle **Auto-Enter** (off on every launch; unavailable on Sway). |
 | `Ctrl+N` | Switch between **Streaming** and **Whole recording**. |
 | `Ctrl+Q` | Quit Chirp. The tray menu also has **Quit Chirp**. |
+| Right Alt + another key | Cancel the current recording on Windows or X11. |
 
-### Indicator
-
-A small indicator at the top center of the screen shows what Chirp is doing.
+The indicator at the top center of the screen shows the current state:
 
 | State | Meaning |
 | --- | --- |
@@ -86,57 +87,65 @@ A small indicator at the top center of the screen shows what Chirp is doing.
 | **Transcribing** | You released the key and Chirp is working. |
 | **Copied** | The text is on the clipboard for manual paste. |
 
-### Paste behavior
+If you switch windows before the paste, or return after switching away, Chirp leaves the transcript on the clipboard. Chirp uses the default system microphone.
 
-- If you switch windows before the paste finishes, or switch away and back, Chirp leaves the transcript on the clipboard.
-- With Auto-Enter on, Chirp waits 600 ms after the original window reads the pasted text, then presses Enter. It skips Enter if you changed windows or pressed a key in between.
-- Chirp uses `Ctrl+Shift+V` for terminals. If your terminal uses another binding, paste manually from the clipboard.
+When Auto-Enter is on, Chirp waits 600 ms after the original window reads the pasted text, then presses Enter. If you changed windows or pressed a key in the meantime, it skips Enter.
 
-## Speech Models
+On both Linux backends, Chirp uses `Ctrl+Shift+V` for terminals. If your terminal uses another paste binding, paste manually from the clipboard.
 
-Chirp loads one model at startup, chosen with the `CHIRP_ASR_MODEL` environment variable.
+## Speech models
 
-| Setting | Model | Languages | Publisher | License |
-| --- | --- | --- | --- | --- |
-| `qwen` (default) | Qwen3-ASR 0.6B | 30, including English, German, Arabic | Qwen team | Apache 2.0 |
-| `parakeet` | Parakeet TDT 0.6B v3 | 25 European languages | NVIDIA | CC BY 4.0 |
-| `parakeet-streaming` | Parakeet TDT 0.6B v3 | 25 European languages | NVIDIA | CC BY 4.0 |
+| | Qwen3-ASR 0.6B | Parakeet TDT 0.6B v3 |
+| --- | --- | --- |
+| Setting | `qwen` (default) | `parakeet`, `parakeet-streaming` |
+| Languages | 30, including English, German, Arabic | 25 European languages |
+| Speed (CPU) | Slower | Faster |
+| Publisher | Qwen team | NVIDIA |
+| License | Apache 2.0 | CC BY 4.0 |
 
-`parakeet-streaming` is optional. It transcribes phrases in the background while you speak, ends a phrase at a pause, and splits continuous speech near a quiet point. It still pastes once, on release.
+On the same laptop, recognizing an 88-second noisy English clip took 23.8 s with Qwen and 3.1 s with Parakeet. Results vary by voice, microphone, and hardware. See the full [model comparison and verification notes](docs/verification.md).
 
-### Switch models
+Choose a model with the `CHIRP_ASR_MODEL` environment variable. Chirp loads it at startup.
 
-**Windows (installed copy).** Quit Chirp with `Ctrl+Q`, then run:
+**Windows (installed copy).** Quit Chirp with `Ctrl+Q` and replace the executable path below with the path to your installed copy.
 
 ```powershell
-$model = 'parakeet'   # or 'qwen'
+$model = 'parakeet'   # or 'qwen' or 'parakeet-streaming'
 [Environment]::SetEnvironmentVariable('CHIRP_ASR_MODEL', $model, 'User')
 $env:CHIRP_ASR_MODEL = $model
-$chirp = (Get-ItemPropertyValue 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' 'Chirp').Trim('"')
+$chirp = 'C:\path\to\Chirp.exe'
 & $chirp
 ```
 
-**Linux or a source checkout.**
+**Windows (source checkout).**
 
-```sh
-CHIRP_ASR_MODEL=parakeet npm run start:linux
+```powershell
+$env:CHIRP_ASR_MODEL = 'parakeet-streaming'
+npm start
 ```
 
-## Build from Source
+**Linux.** Select the model when launching the packaged app or when starting from source.
+
+```sh
+CHIRP_ASR_MODEL=parakeet-streaming ./chirp-dictation
+CHIRP_ASR_MODEL=parakeet-streaming npm run start:linux  # from source
+```
+
+`parakeet-streaming` selects Parakeet and starts Chirp in streaming mode. In that mode, Chirp processes phrases while you speak, uses pauses and quiet points to split audio, and tries to paste once on release. You can also toggle streaming with `Ctrl+N` after loading either model.
+
+## Build from source
 
 ### Requirements
 
 | Tool | Version |
 | --- | --- |
 | Node.js | 24 or newer |
-| Electron | 45.4.1 |
-| TypeScript | 5.9.3 |
-| sherpa-onnx-node | 1.12.36 |
+| Electron | 45.4.1 (installed by `npm ci`) |
+| TypeScript | 5.9.3 (installed by `npm ci`) |
+| sherpa-onnx-node | 1.12.36 (installed by `npm ci`) |
 
-The last three install with `npm ci`.
-
-- **Windows**: x64, Visual Studio Build Tools with the **Desktop development with C++** workload, and the Windows SDK.
-- **Linux**: x64, a C++ compiler, and development libraries for X11, XInput2, and XTEST. On Debian and Ubuntu: `build-essential libx11-dev libxi-dev libxtst-dev`.
+- **Windows:** x64, Visual Studio Build Tools with the **Desktop development with C++** workload and the Windows SDK.
+- **Linux:** x64, a C++ compiler, and development libraries for X11, XInput2, and XTEST. On Debian and Ubuntu: `build-essential libx11-dev libxi-dev libxtst-dev`.
 
 ### Windows
 
@@ -171,40 +180,21 @@ npm run dist:linux   # produce a portable tar.gz in dist/
 | `npm run test:capture` / `npm run test:paste` | Interactive Windows checks |
 | `npm run dist` / `npm run dist:linux` | Package for Windows or Linux |
 
-## How It Works
+## How it works
 
 ```mermaid
 flowchart LR
-    H["Native input helper<br/>(Windows / X11 / Sway)"] <-->|"line protocol on stdio"| M["Electron main<br/>(tray, state machine)"]
+    H["Platform input helper<br/>(Windows / X11 / Sway)"] <-->|"line protocol on stdio"| M["Electron main<br/>(tray, state machine)"]
     M <-->|IPC| R["Overlay renderer<br/>(mic capture, indicator)"]
     M <-->|messages| W["Speech worker<br/>(sherpa-onnx, CPU)"]
 ```
 
-1. A native helper watches **Right Alt** and reports `down`, `up`, and `cancel` events to the main process.
+1. A platform helper reports Right Alt presses and releases to the main process. On Windows and X11 it also reports cancelled recordings.
 2. The overlay captures 16 kHz microphone audio through an AudioWorklet and sends it to the main process.
-3. A speech worker, in its own process, transcribes the audio with the selected model.
-4. The main process sends the text to the helper, which puts it on the clipboard and sends the paste shortcut only if the original window is still focused.
+3. A speech worker, running in its own process, transcribes the audio with the selected model.
+4. The main process sends the text back to the helper, which puts it on the clipboard. The helper sends the paste shortcut if focus stayed in the original window and the target supports automatic paste.
 
-## Performance
-
-On one Intel Core Ultra 9 275HX laptop with four CPU threads, recognition time after the audio was available:
-
-| Recording | Qwen | Parakeet |
-| --- | ---: | ---: |
-| Noisy English, 88.19 s | 23.80 s | 3.06 s |
-| German, 6.72 s | 1.08 s | 0.24 s |
-| Arabic, 5.25 s | 1.23 s | 0.23 s |
-
-Qwen matched the German reference and produced Arabic text, while Parakeet wrote a phonetic Latin rendering of the Arabic. Results vary with your voice, microphone, and hardware. Reproduce them with `npm run compare`. The [verification notes](docs/verification.md) cover the full comparison, streaming benchmarks, and Windows checks.
-
-## Documentation
-
-| Document | Contents |
-| --- | --- |
-| [docs/verification.md](docs/verification.md) | Model comparison, streaming benchmarks, and how to repeat the Windows checks |
-| [`native/windows/terms.txt`](native/windows/terms.txt) | Terms and third-party notices, installed as `Chirp Terms.txt` |
-
-## Repository Layout
+### Repository layout
 
 | Path | Responsibility |
 | --- | --- |
@@ -217,16 +207,7 @@ Qwen matched the German reference and produced Arabic text, while Parakeet wrote
 | `tests` | Recognition, clipboard, desktop, and installer checks |
 | `docs` | Verification notes and benchmarks |
 
-## Known Limitations
-
-- Windows installers are unsigned, so SmartScreen may warn.
-- Only Sway is supported on Wayland. Other compositors are rejected at startup.
-- Auto-Enter is unavailable on Sway.
-- Qwen3-ASR returns text without timestamps, and Parakeet does not support Arabic.
-
-## Contribution and Support
-
-Issues and pull requests are welcome. Before opening a pull request, run:
+## Testing
 
 ```sh
 npm test
@@ -238,14 +219,25 @@ The interactive Windows checks (capture, paste, clipboard, desktop targets, inst
 
 ## Privacy
 
-- Audio and transcripts exist only in memory while a recording is processed.
-- Chirp makes no network requests while running. Only `npm run models` downloads files.
-- On Windows, fallback clipboard text carries the clipboard-history exclusion marker.
+- Chirp processes audio and text in memory without saving a history. Transcripts can remain on the system clipboard after dictation.
+- Speech recognition runs on the device without uploading audio or transcripts.
+- On Windows, Chirp marks copied transcripts for exclusion from clipboard history.
 
-## License
+## Known limitations
 
-Chirp's terms are in [`native/windows/terms.txt`](native/windows/terms.txt). The bundled models and runtime have their own licenses:
+- Windows installers are unsigned, so SmartScreen may warn.
+- Only Sway is supported on Wayland. Other compositors are rejected at startup.
+- Auto-Enter is unavailable on Sway.
+- Chirp pastes plain text without timestamps. Use Qwen for Arabic dictation.
 
-- [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3): CC BY 4.0, converted to ONNX by [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
-- [Qwen3-ASR 0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B): Apache 2.0
-- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx): Apache 2.0
+## Contributing
+
+Issues and pull requests are welcome. Before opening a pull request, run `npm test`, `npm run lint`, and `npm run check:format`.
+
+## License and third-party notices
+
+Chirp's terms are in `native/windows/terms.txt`, which the installer shows and installs as `Chirp Terms.txt`. The bundled models and runtime have their own licenses:
+
+- [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), CC BY 4.0, converted to ONNX by [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
+- [Qwen3-ASR 0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B), Apache 2.0
+- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), Apache 2.0
