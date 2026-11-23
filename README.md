@@ -1,3 +1,57 @@
 # Chirp
 
-A Windows x64 Electron tray app for local, hold-to-talk dictation. Install once and use Right Alt to dictate into the active app. Ctrl+Q exits.
+Chirp is a small Windows x64 dictation app. Hold **Right Alt**, speak, and release it to paste your words into the window where you started. Both speech models run on your laptop. Chirp keeps recordings and transcripts in memory and has no history.
+
+## Install and dictate
+
+1. Open `dist\Chirp Setup.exe`. The installer includes both models, installs Chirp for your Windows account, and opens it. Windows starts Chirp every time you sign in, including after a restart. The installer is unsigned.
+2. Find the Chirp icon in the system tray, near the clock. Its tooltip shows when the model is ready. Chirp uses the default Windows microphone.
+3. Click a text field, hold **Right Alt**, and speak. A small indicator appears at the bottom center of that screen. Release the key and keep the same window focused. Chirp pastes the result and leaves you in control of sending it.
+4. If you switch windows, Chirp leaves the words on the clipboard. Paste them wherever you want. This also applies if you switch away and then return before transcription finishes.
+
+After a successful automatic paste, Chirp restores the previous clipboard contents when possible. The **Copied** indicator means the transcript is available for manual paste. Using Right Alt in a key combination cancels that recording.
+
+The shortcut uses normal Windows keyboard events. For example, if you dictate into Notepad, Windows sees Right Alt and Chirp sends the usual paste shortcut to Notepad.
+
+**Ctrl+Q** quits Chirp from any window. You can also right-click the tray icon and choose **Quit Chirp**. To remove Chirp, use **Settings → Apps → Installed apps**. Uninstalling removes its sign-in entry.
+
+## Switch speech models
+
+Chirp defaults to **Qwen3-ASR 0.6B** (`qwen`). **Parakeet TDT 0.6B v3** (`parakeet`) is also installed. Chirp loads the selected model when it starts and transcribes on release. The two adapters share the same microphone and paste code. The [model comparison](docs/verification.md) covers English, German, and Arabic.
+
+To switch an installed copy, exit Chirp with **Ctrl+Q**, then run this in PowerShell. Set the first line to `'qwen'` to switch back.
+
+```powershell
+$model = 'parakeet'
+[Environment]::SetEnvironmentVariable('CHIRP_ASR_MODEL', $model, 'User')
+$env:CHIRP_ASR_MODEL = $model
+$chirp = (Get-ItemPropertyValue 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' 'Chirp').Trim('"')
+& $chirp
+```
+
+## Build from source
+
+Use Windows x64, Node.js 24 or newer, and Visual Studio Build Tools with the **Desktop development with C++** workload and Windows SDK. Run these commands from the repository root.
+
+```powershell
+npm ci
+npm run models
+npm start
+```
+
+`npm run models` downloads the pinned sherpa-onnx conversions, checks both archive hashes, and extracts the models into `models\`. It reuses verified archives in `build\downloads\`. Downloads are needed to prepare a fresh build. Installed dictation works locally on the CPU.
+
+Run `npm run dist` to produce `dist\Chirp Setup.exe`. It includes the Electron app, the Windows input helper, both models, and their license notices. Git tracks the source, packaging configuration, and dependency lockfile. Build outputs and model weights stay local.
+
+## Repository guide
+
+| Directory | Responsibility |
+| --- | --- |
+| `src/main` | Tray icon, overlay window, shortcut, and dictation lifecycle |
+| `src/preload` and `src/renderer` | Microphone capture, audio worklet, and overlay UI |
+| `src/speech` | Speech worker, shared recognition interface, and model adapters |
+| `native/windows` | Keyboard and foreground-window events, clipboard delivery, and sign-in registration |
+| `scripts` | Model setup, Windows helper build, and model comparison |
+| `tests` | Recognition, clipboard, desktop, and installer checks |
+
+Run `npm test`, `npm run lint`, and `npm run check:format` for the basic checks. See [verification and test commands](docs/verification.md) for the interactive Windows checks.
