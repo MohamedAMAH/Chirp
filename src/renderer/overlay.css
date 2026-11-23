@@ -1,8 +1,8 @@
 :root {
-  --navy: #1b365d;
-  --blue: #005a9c;
-  --sky: #60c1e5;
-  --ice: #a0e0ef;
+  --cream: #ebebd8;
+  --moss: #637545;
+  --forest: #455230;
+  --sage: #9ba685;
   font:
     600 13px/20px "Segoe UI Variable Text",
     "Segoe UI",
@@ -22,38 +22,30 @@ body {
 }
 
 main {
-  position: relative;
-  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 9px;
   width: max-content;
   max-width: 100%;
   min-height: 34px;
-  padding: 3px 14px 3px 3px;
-  border: 1px solid var(--sky);
-  border-radius: 14px;
-  color: var(--ice);
-  background: linear-gradient(180deg, var(--blue) -60%, var(--navy) 60%);
-  box-shadow:
-    0 0 0 1px rgb(27 54 93 / 0.9),
-    0 3px 10px rgb(27 54 93 / 0.55);
+  padding: 3px 13px 3px 3px;
+  border: 1px solid var(--sage);
+  border-radius: 12px;
+  color: var(--forest);
+  background: var(--cream);
 }
 output {
-  position: relative;
   white-space: nowrap;
 }
 .signal {
-  position: relative;
   flex-shrink: 0;
   width: 28px;
   height: 26px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  background: var(--sky);
-  color: var(--navy);
-  transition: background 160ms ease-out;
+  background: var(--forest);
+  color: var(--cream);
 }
 .signal > *,
 .check,
@@ -76,7 +68,7 @@ output {
 .wave i {
   height: 6px;
   transform: scaleY(var(--level, 1));
-  transition: transform 90ms ease-out;
+  transition: transform 120ms ease-out;
 }
 .wave i:nth-child(2) {
   height: 12px;
@@ -85,66 +77,10 @@ output {
   height: 18px;
 }
 .wave i:nth-child(4) {
-  height: 12px;
+  height: 10px;
 }
-
-/* Starting: the microphone is opening. */
-[data-state="starting"] .signal {
-  background: var(--blue);
-  color: var(--ice);
-}
-
-/* Listening: a ring pulses out from the badge. */
-[data-state="listening"] .signal::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: 2px solid var(--sky);
-  animation: pulse 1.4s ease-out infinite;
-  pointer-events: none;
-}
-@keyframes pulse {
-  from {
-    opacity: 0.9;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(1.7, 1.55);
-  }
-}
-
-/* Transcribing: dots bounce and a light sweeps along the pill. */
 [data-state="transcribing"] .signal {
-  background: var(--blue);
-  color: var(--ice);
-}
-main[data-state="transcribing"]::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--ice) 45%,
-    var(--sky) 55%,
-    transparent
-  );
-  background-size: 50% 100%;
-  background-repeat: no-repeat;
-  animation: sweep 1.1s ease-in-out infinite;
-}
-@keyframes sweep {
-  from {
-    background-position: -60% 0;
-  }
-  to {
-    background-position: 160% 0;
-  }
+  background: var(--moss);
 }
 .dots i {
   width: 3px;
@@ -165,47 +101,26 @@ main[data-state="transcribing"]::after {
     transform: translateY(-2px);
   }
 }
-
-/* Copied and notices. */
 [data-state="copied"] svg,
 [data-state="notice"] svg {
   display: block;
   width: 19px;
   height: 19px;
 }
-[data-state="copied"] .signal {
-  background: var(--ice);
-  color: var(--navy);
-}
 [data-state="copied"] .check,
 [data-state="notice"] .notice {
   display: inline;
 }
-[data-state="copied"] .check {
-  stroke-dasharray: 20;
-  animation: draw 280ms ease-out both;
-}
-@keyframes draw {
-  from {
-    stroke-dashoffset: 20;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
 [data-state="notice"] .signal {
   background: transparent;
-  color: var(--sky);
+  color: var(--forest);
 }
 @media (prefers-reduced-motion: reduce) {
   .wave i {
     transform: none;
     transition: none;
   }
-  .dots i,
-  .signal::after,
-  main::after,
-  .check {
+  .dots i {
     animation: none;
   }
 }
