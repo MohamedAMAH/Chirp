@@ -2,6 +2,7 @@ appId: local.chirp.dictation
 productName: Chirp
 npmRebuild: false
 files:
+  - assets/tray.png
   - out/**/*
   - src/renderer/*.html
   - src/renderer/*.css
@@ -18,6 +19,7 @@ extraFiles:
   - from: native/windows/terms.txt
     to: Chirp Terms.txt
 win:
+  icon: assets/chirp.ico
   target: nsis
 nsis:
   license: native/windows/terms.txt
@@ -27,5 +29,6 @@ nsis:
   createStartMenuShortcut: false
   runAfterFinish: true
   differentialPackage: false
+  useZip: true
   include: native/windows/startup.nsh
   artifactName: Chirp Setup.exe

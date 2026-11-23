@@ -2,14 +2,7 @@ import {app, BrowserWindow, globalShortcut, Menu, nativeImage, screen, Tray} fro
 import path from 'node:path';
 
 function icon() {
-  const pixels = Buffer.alloc(32 * 32 * 4);
-  for (let y=0;y<32;y++) for (let x=0;x<32;x++) {
-    if ((x-15.5)**2+(y-15.5)**2>224) continue;
-    const bar=[8,13,18,23].findIndex(center=>Math.abs(center-x)<=1);
-    const light=bar>=0 && Math.abs(y-15.5)<[4,9,7,4][bar];
-    pixels.set(light?[186,236,150,255]:[40,55,32,255],4*(y*32+x));
-  }
-  return nativeImage.createFromBitmap(pixels,{width:32,height:32});
+  return nativeImage.createFromPath(path.join(app.getAppPath(),'assets/tray.png'));
 }
 export class Shell {
   readonly tray=new Tray(icon());
