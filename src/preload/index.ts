@@ -8,6 +8,22 @@ interface Recording {
   closing?: ReturnType<typeof setTimeout>;
 }
 let recording: Recording | undefined;
+let meterBars: NodeListOf<HTMLElement>;
+function updateMeter(samples: Float32Array) {
+  // Each bar shows a successive slice of the most recent microphone buffer.
+  const width = samples.length / meterBars.length;
+  meterBars.forEach((bar, index) => {
+    const start = Math.floor(index * width);
+    const end = Math.floor((index + 1) * width);
+    let energy = 0;
+    for (let i = start; i < end; i++) energy += samples[i] * samples[i];
+    const rms = Math.sqrt(energy / Math.max(1, end - start));
+    bar.style.setProperty(
+      "--level",
+      String(Math.min(1, 0.32 + 4 * Math.sqrt(rms))),
+    );
+  });
+}
 function close(r: Recording) {
   clearTimeout(r.closing);
   r.stream?.getTracks().forEach((track) => track.stop());
@@ -49,7 +65,10 @@ ipcRenderer.on("capture-start", async (_event, id: number) => {
     input.port.onmessage = ({ data }) => {
       if (recording !== r) return;
       if (data === "end") finish(r);
-      else r.chunks.push(data);
+      else {
+        r.chunks.push(data);
+        updateMeter(data);
+      }
     };
     ctx.createMediaStreamSource(stream).connect(input);
     await ctx.resume();
@@ -75,8 +94,18 @@ ipcRenderer.on("capture-cancel", () => {
   if (recording) close(recording);
 });
 window.addEventListener("DOMContentLoaded", () => {
+  const indicator = document.querySelector("main")!;
   const output = document.querySelector("output")!;
+  meterBars = document.querySelectorAll(".wave i");
   ipcRenderer.on("indicator", (_event, text: string) => {
+    indicator.dataset.state = ["Listening", "Transcribing", "Copied"].includes(
+      text,
+    )
+      ? text.toLowerCase()
+      : "notice";
+    if (text === "Listening") {
+      meterBars.forEach((bar) => bar.style.removeProperty("--level"));
+    }
     output.textContent = text;
   });
 });

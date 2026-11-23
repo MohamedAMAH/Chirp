@@ -10,9 +10,26 @@
     <title>Chirp</title>
   </head>
   <body>
-    <main>
-      <span aria-hidden="true">▂▆▃</span
-      ><output aria-live="polite">Listening</output>
+    <main data-state="listening">
+      <span class="signal" aria-hidden="true">
+        <span class="wave"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="dots"><i></i><i></i><i></i></span>
+        <svg
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path class="check" d="m4.5 10.5 3.5 3.5 7.5-8" />
+          <g class="notice">
+            <circle cx="10" cy="10" r="6.6" />
+            <path d="M10 6.5v4m0 2.5h.01" />
+          </g>
+        </svg>
+      </span>
+      <output aria-live="polite" aria-atomic="true">Listening</output>
     </main>
   </body>
 </html>

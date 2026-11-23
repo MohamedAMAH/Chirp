@@ -27,13 +27,22 @@ app
       callback(permission === "media"),
     );
     if (shell.overlay.isFocusable()) throw Error("Overlay can steal focus.");
-    shell.show("Listening");
-    if (
-      (await shell.overlay.webContents.executeJavaScript(
-        'document.querySelector("output").textContent',
-      )) !== "Listening"
-    )
-      throw Error("Indicator failed.");
+    for (const [label, symbol] of [
+      ["Transcribing", ".dots"],
+      ["Copied", ".check"],
+      ["Microphone unavailable", ".notice"],
+      ["Listening", ".wave"],
+    ]) {
+      shell.show(label);
+      const shown = await shell.overlay.webContents.executeJavaScript(`(() => {
+        const text = document.querySelector("output");
+        const bounds = text.getBoundingClientRect();
+        return text.textContent === ${JSON.stringify(label)}
+          && bounds.right <= innerWidth && bounds.left >= 0
+          && document.querySelector(${JSON.stringify(symbol)}).getBoundingClientRect().width > 0;
+      })()`);
+      if (!shown) throw Error("Indicator state failed: " + label);
+    }
     worker = utilityProcess.fork(path.join(root, "out/speech/worker.js"));
     const ready = once(worker, "message");
     worker.postMessage({
@@ -47,6 +56,12 @@ app
     const audio = once(ipcMain, "audio");
     shell.overlay.webContents.send("capture-start", 1);
     await new Promise((r) => setTimeout(r, 6500));
+    if (
+      !(await shell.overlay.webContents.executeJavaScript(
+        '[...document.querySelectorAll(".wave i")].every(bar => bar.style.getPropertyValue("--level") !== "")',
+      ))
+    )
+      throw Error("The microphone did not drive the listening meter.");
     const released = performance.now();
     shell.overlay.webContents.send("capture-stop", 1);
     const [, id, samples] = await audio;
