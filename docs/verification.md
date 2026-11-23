@@ -28,6 +28,33 @@ Both Chirp adapters run on the CPU after you release Right Alt. They return plai
 
 The publishers describe the available modes and their runtime requirements in the [NVIDIA Parakeet model card](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and the [Qwen inference guide](https://github.com/QwenLM/Qwen3-ASR#streaming-inference).
 
+### Local streaming benchmark
+
+The publisher runtimes ran on an RTX 5070 Ti Laptop GPU with 12 GB of VRAM under Docker Desktop and WSL 2. The five recordings were a 15.25-second English coding instruction, a 7.83-second synthetic English hesitation test, a 19.02-second English radio exchange, and the German and Arabic samples above. Every configuration received the same mono audio at 16 kHz with automatic language selection. Arabic is included to show what happens outside Parakeet's supported languages.
+
+Each time below is the median across the five recordings. First text measures from the start of the recording to the first nonempty output. That output can change. The release column measures how much longer recognition takes once all the audio has arrived. The timings exclude loading the model, starting the microphone, and pasting into Windows.
+
+| GPU configuration | First text | Remaining after release |
+| --- | ---: | ---: |
+| Qwen, 1 s chunks | 1.21 s | 0.15 s |
+| Qwen, 2 s chunks | 2.27 s | 0.24 s |
+| Qwen, 4 s chunks | 4.36 s | 0.52 s |
+| Parakeet, 0.16 s chunks + 0.16 s lookahead | 0.37 s | 0.03 s |
+| Parakeet, 0.16 s chunks + 3.84 s lookahead | 4.18 s | 0.04 s |
+| Parakeet, 2 s chunks + 2 s lookahead | 4.03 s | 0.04 s |
+| Parakeet, same 2 + 2 setting with four beam-search candidates | 4.05 s | 0.07 s |
+| Parakeet, 10 s chunks + 5 s lookahead | 7.87 s | 0.05 s |
+| Qwen, whole recording on release | After release | 0.81 s |
+| Parakeet, whole recording on release | After release | 0.06 s |
+
+**Qwen.** The single-stream test replayed each clip in real time using `qwen-asr` 0.0.6 and vLLM 0.14.0 with eager execution. The three chunk sizes above used half-second audio deliveries. With the 2 s chunk size, the four delivery intervals from Qwen's example (0.5, 1, 2 and 4 s) produced the same final text on each clip. Their median first-text times were 2.27, 2.29, 2.28 and 4.57 s respectively. Changing the model's chunk size changed some German and Arabic words. On the filler clip the 1 s setting initially displayed “嗯。” and revised it to English as the speaker continued. The separate batch API transcribed all five completed recordings in 2.20 s. [Qwen streaming example](https://github.com/QwenLM/Qwen3-ASR/blob/main/examples/example_qwen3_asr_vllm_streaming.py)
+
+**Parakeet.** NeMo 3.0.0 processed overlapping chunks with 10 s of left context. The reference example replays files without waiting between chunks. Its timing here models real-time arrivals using the audio available at each step and the measured, GPU-synchronized decoding time. Each configuration ran twice over the clips, with timings taken on the second pass. At 0.16 s of lookahead the 15-second coding prompt became “Insurbe.” At 2 s chunks plus 2 s lookahead the complete prompt came through. With 10 s chunks plus 5 s lookahead, the three shortest clips finished before any preview appeared. A two-stream batch at the 2 + 2 setting matched the single-stream final text on all four supported-language clips. NeMo's simulated decoding test, which waits until the end to decode the chunks together, matched the five single-stream final transcripts. [NVIDIA model card](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3#streaming-with-parakeet-models) · [NeMo reference implementation](https://github.com/NVIDIA-NeMo/NeMo/blob/v3.0.0/examples/asr/asr_chunked_inference/rnnt/speech_to_text_streaming_infer_rnnt.py)
+
+**Hesitations.** On the radio recording the speaker says “I, uh, yeah.” Chirp's CPU Qwen adapter omitted “uh” and its Parakeet adapter kept it. Both publisher runtimes kept it at their 2 s streaming settings. On the synthetic clip both Chirp adapters kept the more clearly pronounced hesitations. Neither model consistently removed filler words in these tests.
+
+The GPU tests used the original Qwen checkpoint at revision `5eb144179a02acc5e5ba31e748d22b0cf3e303b0` and the NVIDIA checkpoint at `541d1f99c6b0c3cd0b11a95167540bb8edefd82b`. Both streamed using the recognizer alone. Chirp's installed Windows app uses the quantized sherpa-onnx adapters. On the same 15.25-second coding clip, their warmed whole-recording decoding times were 3.77 s for Qwen and 0.98 s for Parakeet. These are single-machine measurements.
+
 ### Repeat the comparison
 
 After `npm ci` and `npm run models`, run the following from the repository root in PowerShell. The comparison prints one JSON record per model and clip, including the transcript and elapsed milliseconds. The reference text for the language samples is in `models/qwen/test_wavs/transcript.txt`.
