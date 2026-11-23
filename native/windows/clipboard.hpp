@@ -11,6 +11,7 @@ bool waiting;
 int retries;
 constexpr UINT Timer=71;
 constexpr UINT ReadTimeout=72;
+constexpr UINT RestoreDelayMs=160;
 bool awaitingRead=false;
 void discard() {
     for(auto [fmt,handle]:prior) {
@@ -66,7 +67,7 @@ bool handle(HWND owner,UINT msg,WPARAM wp,void (*onPasted)()=nullptr) {
         // Chromium can call OpenClipboard(nullptr), giving the reader no HWND.
         if(!pid)GetWindowThreadProcessId(GetForegroundWindow(),&pid);
         if(render() && waiting && pid==readerPid) {
-            sequence=GetClipboardSequenceNumber(); retries=0; SetTimer(owner,Timer,160,nullptr);
+            sequence=GetClipboardSequenceNumber(); retries=0; SetTimer(owner,Timer,RestoreDelayMs,nullptr);
             if(awaitingRead){
                 awaitingRead=false; KillTimer(owner,ReadTimeout);
                 if(onPasted)onPasted();

@@ -13,9 +13,11 @@ HWND owner, destination;
 DWORD destinationPid;
 bool armed, held, chord, forwardAlt, focusChanged;
 bool autoEnter, submitThisHold;
+bool waitingToSubmit;
 unsigned session;
 constexpr UINT Command=WM_APP+1;
-constexpr UINT FinishPaste=WM_APP+2;
+constexpr UINT_PTR AutoEnterTimer=73;
+constexpr UINT PasteSettleMs=500;
 constexpr int ToggleAutoEnter=1;
 constexpr int ToggleMode=2;
 void emit(const std::string& line) { std::cout << line << std::endl; }
@@ -28,8 +30,16 @@ void emitNearWindow(const std::string& event, HWND window) {
 }
 void pasteRead() {
     // Leave the synchronous clipboard rendering call before sending another key.
-    if(!submitThisHold)emit("pasted");
-    else if(!PostMessageW(owner,FinishPaste,session,0))emit("enter-skipped");
+    if(!submitThisHold){
+        emit("pasted");
+        return;
+    }
+    // A clipboard read can precede delivery to the editor. Integrated
+    // terminals share their window with the rest of the application.
+    waitingToSubmit=SetTimer(owner,AutoEnterTimer,PasteSettleMs,nullptr)!=0;
+    if(waitingToSubmit)
+        SetTimer(owner,clipboard::Timer,PasteSettleMs+clipboard::RestoreDelayMs,nullptr);
+    else emit("enter-skipped");
 }
 
 LRESULT CALLBACK keyboard(int code, WPARAM message, LPARAM data) {
@@ -37,6 +47,7 @@ LRESULT CALLBACK keyboard(int code, WPARAM message, LPARAM data) {
     const auto& key=*reinterpret_cast<KBDLLHOOKSTRUCT*>(data);
     const bool down=message==WM_KEYDOWN || message==WM_SYSKEYDOWN;
     if(!(key.flags&LLKHF_INJECTED)) {
+        if(down && waitingToSubmit)submitThisHold=false;
         if(key.vkCode==VK_RMENU) {
             if(down && !held && armed) {
                 held=true; armed=false; chord=false; ++session;
@@ -73,10 +84,13 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         emitNearWindow(autoEnter?"auto-enter on":"auto-enter off",GetForegroundWindow());
         return 0;
     }
-    if(msg==FinishPaste) {
+    if(msg==WM_TIMER && wp==AutoEnterTimer) {
+        KillTimer(owner,AutoEnterTimer);
+        if(!waitingToSubmit)return 0;
+        waitingToSubmit=false;
         DWORD pid=0;
         GetWindowThreadProcessId(GetForegroundWindow(),&pid);
-        bool submit=wp==session && submitThisHold && autoEnter && !focusChanged &&
+        bool submit=submitThisHold && autoEnter && !focusChanged &&
             GetForegroundWindow()==destination && pid==destinationPid && !clipboard::modifierDown() &&
             !pressed(VK_RETURN) && GetClipboardOwner()==owner &&
             GetClipboardSequenceNumber()==clipboard::sequence;
