@@ -12,10 +12,24 @@ namespace {
 HWND owner, destination;
 DWORD destinationPid;
 bool armed, held, chord, forwardAlt, focusChanged;
+bool autoEnter, submitThisHold;
 unsigned session;
 constexpr UINT Command=WM_APP+1;
+constexpr UINT FinishPaste=WM_APP+2;
+constexpr int ToggleAutoEnter=1;
 void emit(const std::string& line) { std::cout << line << std::endl; }
 bool pressed(int key) { return (GetAsyncKeyState(key)&0x8000)!=0; }
+void emitNearWindow(const std::string& event, HWND window) {
+    MONITORINFO monitor{sizeof(MONITORINFO)};
+    GetMonitorInfoW(MonitorFromWindow(window,MONITOR_DEFAULTTOPRIMARY),&monitor);
+    const auto& r=monitor.rcWork;
+    emit(event+" "+std::to_string((r.left+r.right)/2)+" "+std::to_string((r.top+r.bottom)/2));
+}
+void pasteRead() {
+    // Leave the synchronous clipboard rendering call before sending another key.
+    if(!submitThisHold)emit("pasted");
+    else if(!PostMessageW(owner,FinishPaste,session,0))emit("enter-skipped");
+}
 
 LRESULT CALLBACK keyboard(int code, WPARAM message, LPARAM data) {
     if(code!=HC_ACTION) return CallNextHookEx(nullptr,code,message,data);
@@ -25,14 +39,12 @@ LRESULT CALLBACK keyboard(int code, WPARAM message, LPARAM data) {
         if(key.vkCode==VK_RMENU) {
             if(down && !held && armed) {
                 held=true; armed=false; chord=false; ++session;
+                submitThisHold=autoEnter;
                 // AltGr layouts generate a companion Left Ctrl keydown.
                 forwardAlt=pressed(VK_LCONTROL);
                 focusChanged=false; destination=GetForegroundWindow();
                 GetWindowThreadProcessId(destination,&destinationPid);
-                MONITORINFO monitor{sizeof(MONITORINFO)};
-                GetMonitorInfoW(MonitorFromWindow(destination,MONITOR_DEFAULTTOPRIMARY),&monitor);
-                const auto& r=monitor.rcWork;
-                emit("down "+std::to_string(session)+" "+std::to_string((r.left+r.right)/2)+" "+std::to_string((r.top+r.bottom)/2));
+                emitNearWindow("down "+std::to_string(session),destination);
             } else if(!down && held) {
                 held=false;
                 if(!chord) emit("up "+std::to_string(session));
@@ -49,7 +61,27 @@ void CALLBACK focus(HWINEVENTHOOK,DWORD,HWND window,LONG,LONG,DWORD,DWORD) {
     if(window!=destination) focusChanged=true;
 }
 LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
-    if(clipboard::handle(window,msg,wp))return 0;
+    if(clipboard::handle(window,msg,wp,pasteRead))return 0;
+    if(msg==WM_HOTKEY && wp==ToggleAutoEnter) {
+        autoEnter=!autoEnter;
+        if(!autoEnter)submitThisHold=false;
+        emitNearWindow(autoEnter?"auto-enter on":"auto-enter off",GetForegroundWindow());
+        return 0;
+    }
+    if(msg==FinishPaste) {
+        DWORD pid=0;
+        GetWindowThreadProcessId(GetForegroundWindow(),&pid);
+        bool submit=wp==session && submitThisHold && autoEnter && !focusChanged &&
+            GetForegroundWindow()==destination && pid==destinationPid && !clipboard::modifierDown() &&
+            !pressed(VK_RETURN) && GetClipboardOwner()==owner &&
+            GetClipboardSequenceNumber()==clipboard::sequence;
+        submitThisHold=false;
+        INPUT keys[2]{};
+        for(auto& key:keys){key.type=INPUT_KEYBOARD;key.ki.wVk=VK_RETURN;}
+        keys[1].ki.dwFlags=KEYEVENTF_KEYUP;
+        emit(submit && SendInput(2,keys,sizeof(INPUT))==2?"pasted":"enter-skipped");
+        return 0;
+    }
     if(msg==Command) {
         std::unique_ptr<std::string> line(reinterpret_cast<std::string*>(lp));
         if(*line=="quit") PostQuitMessage(0);
@@ -120,6 +152,8 @@ int main() {
     auto changes=SetWinEventHook(EVENT_SYSTEM_FOREGROUND,EVENT_SYSTEM_FOREGROUND,nullptr,focus,0,0,WINEVENT_OUTOFCONTEXT);
     if(!owner || !keys || !changes) return 1;
     emit("connected");
+    if(!RegisterHotKey(owner,ToggleAutoEnter,MOD_CONTROL|MOD_NOREPEAT,'B'))
+        emitNearWindow("shortcut-unavailable Ctrl+B",GetForegroundWindow());
     std::thread([]{
         for(std::string line;std::getline(std::cin,line);) {
             auto cmd=std::make_unique<std::string>(line);

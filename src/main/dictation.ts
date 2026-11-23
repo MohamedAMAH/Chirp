@@ -69,6 +69,12 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     if (closing) return;
     const [event, n, x, y] = line.split(" ");
     switch (event) {
+      case "auto-enter":
+        shell.notify("Auto-Enter " + n, Number(x), Number(y));
+        break;
+      case "shortcut-unavailable":
+        shell.notify(n + " unavailable", Number(x), Number(y));
+        break;
       case "connected":
         connected = true;
         reset();
@@ -106,6 +112,9 @@ export function startDictation(shell: Shell, helper = openHelper()) {
         break;
       case "pasted":
         reset();
+        break;
+      case "enter-skipped":
+        reset("Pasted · Enter skipped");
         break;
       case "clipboard-changed":
         reset("Clipboard changed");

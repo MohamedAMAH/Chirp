@@ -60,7 +60,7 @@ void restore(HWND owner) {
         }
     CloseClipboard(); prior=std::move(saved); discard(); KillTimer(owner,Timer);
 }
-bool handle(HWND owner,UINT msg,WPARAM wp) {
+bool handle(HWND owner,UINT msg,WPARAM wp,void (*onPasted)()=nullptr) {
     if(msg==WM_RENDERFORMAT && wp==CF_UNICODETEXT) {
         DWORD pid=0; GetWindowThreadProcessId(GetOpenClipboardWindow(),&pid);
         // Chromium can call OpenClipboard(nullptr), giving the reader no HWND.
@@ -69,7 +69,8 @@ bool handle(HWND owner,UINT msg,WPARAM wp) {
             sequence=GetClipboardSequenceNumber(); retries=0; SetTimer(owner,Timer,160,nullptr);
             if(awaitingRead){
                 awaitingRead=false; KillTimer(owner,ReadTimeout);
-                std::cout<<"pasted"<<std::endl;
+                if(onPasted)onPasted();
+                else std::cout<<"pasted"<<std::endl;
             }
         }
         return true;
@@ -94,8 +95,13 @@ bool handle(HWND owner,UINT msg,WPARAM wp) {
     if(msg==WM_TIMER && wp==Timer){restore(owner);return true;}
     return false;
 }
+bool modifierDown() {
+    for(int vk:{VK_MENU,VK_CONTROL,VK_SHIFT,VK_LWIN,VK_RWIN})
+        if(GetAsyncKeyState(vk)&0x8000)return true;
+    return false;
+}
 bool shortcut(bool terminal) {
-    for(int vk:{VK_MENU,VK_CONTROL,VK_SHIFT,VK_LWIN,VK_RWIN}) if(GetAsyncKeyState(vk)&0x8000)return false;
+    if(modifierDown())return false;
     std::vector<INPUT> input;
     auto key=[&](WORD vk,DWORD flags){INPUT i{};i.type=INPUT_KEYBOARD;i.ki.wVk=vk;i.ki.dwFlags=flags;input.push_back(i);};
     key(VK_CONTROL,0); if(terminal)key(VK_SHIFT,0); key('V',0);key('V',KEYEVENTF_KEYUP);

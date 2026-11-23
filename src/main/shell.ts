@@ -38,6 +38,8 @@ export class Shell {
     app.quit(),
   );
   private hideTimer?: NodeJS.Timeout;
+  private noticeTimer?: NodeJS.Timeout;
+  private indicator?: string;
   constructor() {
     this.overlay.setIgnoreMouseEvents(true);
     this.status("Loading");
@@ -79,12 +81,27 @@ export class Shell {
   }
   show(text: string, brief = false) {
     clearTimeout(this.hideTimer);
+    this.indicator = text;
+    if (!this.noticeTimer) this.display(text);
+    if (brief) this.hideTimer = setTimeout(() => this.hide(), 1600);
+  }
+  notify(text: string, x: number, y: number) {
+    clearTimeout(this.noticeTimer);
+    this.position(x, y);
+    this.display(text);
+    this.noticeTimer = setTimeout(() => {
+      this.noticeTimer = undefined;
+      if (this.indicator) this.display(this.indicator);
+      else this.overlay.hide();
+    }, 1400);
+  }
+  private display(text: string) {
     this.overlay.webContents.send("indicator", text);
     this.overlay.showInactive();
-    if (brief) this.hideTimer = setTimeout(() => this.hide(), 1600);
   }
   hide() {
     clearTimeout(this.hideTimer);
-    this.overlay.hide();
+    this.indicator = undefined;
+    if (!this.noticeTimer) this.overlay.hide();
   }
 }
