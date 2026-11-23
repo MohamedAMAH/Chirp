@@ -4,7 +4,7 @@
   --forest: #455230;
   --sage: #9ba685;
   font:
-    600 13px/1 "Segoe UI Variable Text",
+    600 13px/20px "Segoe UI Variable Text",
     "Segoe UI",
     sans-serif;
 }
@@ -34,7 +34,6 @@ main {
 }
 output {
   white-space: nowrap;
-  overflow: hidden;
 }
 .signal {
   flex-shrink: 0;
@@ -52,6 +51,7 @@ output {
   display: none;
 }
 [data-state="listening"] .wave,
+[data-state="starting"] .dots,
 [data-state="transcribing"] .dots {
   display: flex;
   align-items: center;
