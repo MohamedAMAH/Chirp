@@ -30,8 +30,7 @@ process.parentPort.on("message", ({ data }: { data: Job }) => {
         current = { id: data.id, stream: adapter.startStream() };
       } else if (current && data.id === current.id) {
         if (data.action === "chunk") {
-          const preview = current.stream.accept(data.samples);
-          if (preview) process.parentPort.postMessage({ id: data.id, preview });
+          current.stream.accept(data.samples);
         } else {
           const session = current;
           current = undefined;

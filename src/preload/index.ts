@@ -102,15 +102,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const indicator = document.querySelector("main")!;
   const output = document.querySelector("output")!;
   meterBars = document.querySelectorAll(".wave i");
-  ipcRenderer.on("preview", (_event, id: number, text: string) => {
-    if (id !== recording?.id || indicator.dataset.state !== "listening") return;
-    output.textContent = text;
-    output.scrollLeft = output.scrollWidth;
-  });
-  ipcRenderer.on("capture-cancel", () => {
-    if (indicator.dataset.state === "listening")
-      output.textContent = "Listening";
-  });
   ipcRenderer.on("indicator", (_event, text: string) => {
     indicator.dataset.state = ["Listening", "Transcribing", "Copied"].includes(
       text,

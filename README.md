@@ -39,9 +39,9 @@ $env:CHIRP_ASR_MODEL = 'parakeet-streaming'
 npm start
 ```
 
-This optional adapter uses the bundled Windows CPU engine. Hold Right Alt to see
-the latest words in the indicator. It updates about every two seconds, revises
-the current phrase, and pastes the completed text once on release. A pause ends
+This optional adapter uses the bundled Windows CPU engine. Hold Right Alt to
+transcribe in the background. The indicator shows the microphone level while you
+speak. Release the key to paste the completed text once. A pause ends
 a phrase. During continuous speech the adapter splits the audio near a quiet
 point to bound the work left at release. Choose `parakeet` or `qwen` for the
 original whole-recording adapters.

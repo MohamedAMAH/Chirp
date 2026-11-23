@@ -31,17 +31,14 @@ export class BufferedDictation implements SpeechStream {
   }
 
   accept(samples: Float32Array) {
-    let changed = false;
     for (const sample of samples) {
       this.buffer[this.length++] = sample;
       this.quiet = Math.abs(sample) < 0.004 ? this.quiet + 1 : 0;
       if (this.length === this.buffer.length) {
         const [first] = segments(this.buffer, rate, maxSeconds);
         this.commit(first.length);
-        changed = true;
       } else if (this.length >= updateInterval && this.quiet >= rate * 0.4) {
         this.commit(this.length);
-        changed = true;
       }
     }
     if (this.length - this.decodedLength >= updateInterval) {
@@ -50,9 +47,7 @@ export class BufferedDictation implements SpeechStream {
         rate,
       );
       this.decodedLength = this.length;
-      changed = true;
     }
-    if (changed) return this.draft || this.phrases.at(-1);
   }
 
   finish() {

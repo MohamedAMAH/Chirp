@@ -3,7 +3,7 @@ export interface SpeechAdapter {
   startStream?(): SpeechStream;
 }
 export interface SpeechStream {
-  accept(samples: Float32Array): string | undefined;
+  accept(samples: Float32Array): void;
   finish(): string;
 }
 interface Stream {

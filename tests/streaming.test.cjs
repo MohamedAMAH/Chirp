@@ -2,11 +2,16 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { BufferedDictation } = require("../out/speech/parakeet-streaming");
 
-test("a preview stays revisable and finishing includes the last partial block", () => {
+test("recognition starts during capture and only returns text on release", () => {
+  const lengths = [];
   const stream = new BufferedDictation({
-    transcribe: (audio) => String(audio.length),
+    transcribe(audio) {
+      lengths.push(audio.length);
+      return String(audio.length);
+    },
   });
-  assert.equal(stream.accept(new Float32Array(32000).fill(1)), "32000");
+  assert.equal(stream.accept(new Float32Array(32000).fill(1)), undefined);
+  assert.deepEqual(lengths, [32000]);
   assert.equal(stream.accept(Float32Array.of(1)), undefined);
   assert.equal(stream.finish(), "32001");
 });

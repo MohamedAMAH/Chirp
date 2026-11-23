@@ -25,7 +25,6 @@ export function startDictation(shell: Shell, helper = openHelper()) {
   );
   let connected = false,
     streaming = false,
-    listening = false,
     loaded = false,
     closing = false;
   let active: number | undefined,
@@ -39,7 +38,6 @@ export function startDictation(shell: Shell, helper = openHelper()) {
       worker.postMessage({ init: false, id: active, action: "cancel" });
     active = undefined;
     paste = undefined;
-    listening = false;
     if (!closing) shell.overlay.webContents.send("capture-cancel");
   }
   function reset(message?: string) {
@@ -75,7 +73,6 @@ export function startDictation(shell: Shell, helper = openHelper()) {
         break;
       case "down":
         active = Number(n);
-        listening = true;
         if (streaming)
           worker.postMessage({ init: false, id: active, action: "start" });
         shell.position(Number(x), Number(y));
@@ -84,7 +81,6 @@ export function startDictation(shell: Shell, helper = openHelper()) {
         break;
       case "up":
         if (active === Number(n)) {
-          listening = false;
           shell.show("Transcribing");
           shell.overlay.webContents.send("capture-stop", active);
         }
@@ -156,11 +152,6 @@ export function startDictation(shell: Shell, helper = openHelper()) {
       return;
     }
     if (result.id !== active || !connected) return;
-    if (result.preview !== undefined) {
-      if (listening)
-        shell.overlay.webContents.send("preview", active, result.preview);
-      return;
-    }
     if (!result.text) {
       reset(result.failure || "No speech");
       return;
