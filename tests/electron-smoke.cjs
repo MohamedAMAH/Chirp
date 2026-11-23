@@ -28,6 +28,7 @@ app
     );
     if (shell.overlay.isFocusable()) throw Error("Overlay can steal focus.");
     for (const [label, symbol] of [
+      ["Starting", ".dots"],
       ["Transcribing", ".dots"],
       ["Copied", ".check"],
       ["Microphone unavailable", ".notice"],
@@ -53,8 +54,18 @@ app
     if (!(await ready)[0].ready) throw Error("Model unavailable.");
     const unexpectedMicError = () => end(1, "Microphone pipeline failed.");
     ipcMain.once("mic-error", unexpectedMicError);
+    // A release before the microphone opens must not announce readiness later
+    // or consume the prepared input needed by the next hold.
+    const shortTap = once(ipcMain, "audio");
+    shell.overlay.webContents.send("capture-start", 0);
+    shell.overlay.webContents.send("capture-stop", 0);
+    const [, tapId, tapAudio] = await shortTap;
+    if (tapId !== 0 || tapAudio.length)
+      throw Error("Unexpected short-tap audio.");
+    const readyToSpeak = once(ipcMain, "mic-ready");
     const audio = once(ipcMain, "audio");
     shell.overlay.webContents.send("capture-start", 1);
+    if ((await readyToSpeak)[1] !== 1) throw Error("Wrong microphone session.");
     await new Promise((r) => setTimeout(r, 6500));
     if (
       !(await shell.overlay.webContents.executeJavaScript(

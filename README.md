@@ -11,6 +11,8 @@ Chirp is a small Windows x64 dictation app. Hold **Right Alt**, speak, and relea
 
 After a successful automatic paste, Chirp restores the previous clipboard contents when possible. The **Copied** indicator means the transcript is available for manual paste. Using Right Alt in a key combination cancels that recording.
 
+Chirp prepares its audio processing at startup and opens the microphone when you press Right Alt. **Starting** means the microphone is opening. **Listening** appears as soon as audio begins arriving. If your microphone takes a moment to wake up, use **Listening** as your cue to speak.
+
 The shortcut uses normal Windows keyboard events. For example, if you dictate into Notepad, Windows sees Right Alt and Chirp sends the usual paste shortcut to Notepad.
 
 **Ctrl+Q** quits Chirp from any window. You can also right-click the tray icon and choose **Quit Chirp**. To remove Chirp, use **Settings → Apps → Installed apps**. Uninstalling removes its sign-in entry.

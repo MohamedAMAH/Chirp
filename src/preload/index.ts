@@ -4,12 +4,46 @@ interface Recording {
   chunks: Float32Array[];
   streaming: boolean;
   stream?: MediaStream;
-  context?: AudioContext;
+  source?: MediaStreamAudioSourceNode;
   input?: AudioWorkletNode;
   closing?: ReturnType<typeof setTimeout>;
 }
 let recording: Recording | undefined;
+let audioContext: Promise<AudioContext> | undefined;
+let standby:
+  | Promise<{ ctx: AudioContext; input: AudioWorkletNode }>
+  | undefined;
 let meterBars: NodeListOf<HTMLElement>;
+function prepareAudio() {
+  if (!audioContext) {
+    const context = new AudioContext({
+      sampleRate: 16000,
+      latencyHint: "interactive",
+    });
+    audioContext = context.audioWorklet
+      .addModule("../../out/renderer/processor.js")
+      .then(() => context)
+      .catch((error) => {
+        audioContext = undefined;
+        void context.close();
+        throw error;
+      });
+  }
+  return audioContext;
+}
+function prepareInput() {
+  if (!standby) {
+    const pending = prepareAudio().then((ctx) => ({
+      ctx,
+      input: new AudioWorkletNode(ctx, "chirp-capture", { numberOfOutputs: 0 }),
+    }));
+    standby = pending;
+    void pending.catch(() => {
+      if (standby === pending) standby = undefined;
+    });
+  }
+  return standby;
+}
 function updateMeter(samples: Float32Array) {
   // Each bar shows a successive slice of the most recent microphone buffer.
   const width = samples.length / meterBars.length;
@@ -28,9 +62,12 @@ function updateMeter(samples: Float32Array) {
 function close(r: Recording) {
   clearTimeout(r.closing);
   r.stream?.getTracks().forEach((track) => track.stop());
+  r.source?.disconnect();
+  r.input?.port.postMessage("cancel");
   r.input?.disconnect();
-  if (r.context && r.context.state !== "closed") void r.context.close();
+  r.input?.port.close();
   if (recording === r) recording = undefined;
+  prepareInput();
 }
 function finish(r: Recording) {
   if (recording !== r) return;
@@ -50,32 +87,47 @@ ipcRenderer.on(
     const r: Recording = { id, chunks: [], streaming };
     recording = r;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1 },
-        video: false,
+      const device = navigator.mediaDevices
+        .getUserMedia({
+          audio: { channelCount: 1 },
+          video: false,
+        })
+        .then((stream) => {
+          if (recording !== r) {
+            stream.getTracks().forEach((track) => track.stop());
+            return;
+          }
+          r.stream = stream;
+          return stream;
+        });
+      const prepared = prepareInput();
+      standby = undefined;
+      const graph = prepared.then(async ({ ctx, input }) => {
+        if (recording !== r) {
+          input.port.postMessage("cancel");
+          input.port.close();
+          input.disconnect();
+          return ctx;
+        }
+        r.input = input;
+        if (ctx.state === "suspended") await ctx.resume();
+        return ctx;
       });
-      if (recording !== r) {
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-      r.stream = stream;
-      const ctx = (r.context = new AudioContext({ sampleRate: 16000 }));
-      await ctx.audioWorklet.addModule("../../out/renderer/processor.js");
-      if (recording !== r) return;
-      const input = (r.input = new AudioWorkletNode(ctx, "chirp-capture", {
-        numberOfOutputs: 0,
-      }));
+      const [stream, ctx] = await Promise.all([device, graph]);
+      if (!stream || recording !== r || !r.input) return;
+      const input = r.input;
       input.port.onmessage = ({ data }) => {
         if (recording !== r) return;
-        if (data === "end") finish(r);
+        if (data === "started") ipcRenderer.send("mic-ready", id);
+        else if (data === "end") finish(r);
         else {
           if (r.streaming) ipcRenderer.send("audio", r.id, data, true);
           else r.chunks.push(data);
           updateMeter(data);
         }
       };
-      ctx.createMediaStreamSource(stream).connect(input);
-      await ctx.resume();
+      r.source = ctx.createMediaStreamSource(stream);
+      r.source.connect(input);
     } catch {
       if (recording === r) {
         close(r);
@@ -87,7 +139,7 @@ ipcRenderer.on(
 ipcRenderer.on("capture-stop", (_event, id: number) => {
   const r = recording;
   if (!r || r.id !== id) return;
-  if (!r.input) {
+  if (!r.source || !r.input) {
     finish(r);
     return;
   }
@@ -99,13 +151,19 @@ ipcRenderer.on("capture-cancel", () => {
   if (recording) close(recording);
 });
 window.addEventListener("DOMContentLoaded", () => {
+  // Prepare the audio graph without requesting a microphone. A failed warmup
+  // can be retried on the next press.
+  prepareInput();
   const indicator = document.querySelector("main")!;
   const output = document.querySelector("output")!;
   meterBars = document.querySelectorAll(".wave i");
   ipcRenderer.on("indicator", (_event, text: string) => {
-    indicator.dataset.state = ["Listening", "Transcribing", "Copied"].includes(
-      text,
-    )
+    indicator.dataset.state = [
+      "Starting",
+      "Listening",
+      "Transcribing",
+      "Copied",
+    ].includes(text)
       ? text.toLowerCase()
       : "notice";
     if (text === "Listening") {

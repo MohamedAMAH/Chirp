@@ -28,6 +28,7 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     loaded = false,
     closing = false;
   let active: number | undefined,
+    starting: number | undefined,
     paste: string | undefined,
     attempts = 0;
   const send = (command: string) => {
@@ -37,6 +38,7 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     if (active !== undefined && streaming && loaded)
       worker.postMessage({ init: false, id: active, action: "cancel" });
     active = undefined;
+    starting = undefined;
     paste = undefined;
     if (!closing) shell.overlay.webContents.send("capture-cancel");
   }
@@ -73,14 +75,16 @@ export function startDictation(shell: Shell, helper = openHelper()) {
         break;
       case "down":
         active = Number(n);
+        starting = active;
         if (streaming)
           worker.postMessage({ init: false, id: active, action: "start" });
-        shell.position(Number(x), Number(y));
-        shell.show("Listening");
         shell.overlay.webContents.send("capture-start", active, streaming);
+        shell.position(Number(x), Number(y));
+        shell.show("Starting");
         break;
       case "up":
         if (active === Number(n)) {
+          starting = undefined;
           shell.show("Transcribing");
           shell.overlay.webContents.send("capture-stop", active);
         }
@@ -109,6 +113,16 @@ export function startDictation(shell: Shell, helper = openHelper()) {
       case "paste-error":
         reset("Paste failed");
         break;
+    }
+  });
+  ipcMain.on("mic-ready", (event, id: number) => {
+    if (
+      !closing &&
+      event.sender === shell.overlay.webContents &&
+      id === starting
+    ) {
+      starting = undefined;
+      shell.show("Listening");
     }
   });
   ipcMain.on(

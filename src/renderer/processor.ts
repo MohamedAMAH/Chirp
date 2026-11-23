@@ -9,10 +9,12 @@ class CaptureProcessor extends AudioWorkletProcessor {
   private block = new Float32Array(2048);
   private count = 0;
   private stopped = false;
+  private started = false;
   constructor() {
     super();
-    this.port.onmessage = () => {
+    this.port.onmessage = ({ data }) => {
       this.stopped = true;
+      if (data !== "end") return;
       if (this.count) this.port.postMessage(this.block.slice(0, this.count));
       this.port.postMessage("end");
     };
@@ -20,7 +22,11 @@ class CaptureProcessor extends AudioWorkletProcessor {
   process(inputs: Float32Array[][]) {
     if (this.stopped) return false;
     const audio = inputs[0]?.[0];
-    if (audio)
+    if (audio?.length) {
+      if (!this.started) {
+        this.started = true;
+        this.port.postMessage("started");
+      }
       for (const value of audio) {
         this.block[this.count++] = value;
         if (this.count === this.block.length) {
@@ -29,6 +35,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
           this.count = 0;
         }
       }
+    }
     return true;
   }
 }
