@@ -34,8 +34,10 @@ main {
 }
 output {
   white-space: nowrap;
+  overflow: hidden;
 }
 .signal {
+  flex-shrink: 0;
   width: 28px;
   height: 26px;
   border-radius: 8px;

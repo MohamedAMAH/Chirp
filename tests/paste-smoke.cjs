@@ -66,6 +66,19 @@ app
     const hwnd = editor.getNativeWindowHandle().readBigUInt64LE();
     helper.stdin.write("test-hold " + hwnd + "\n");
     await wait(6500);
+    if (process.env.CHIRP_ASR_MODEL === "parakeet-streaming") {
+      const preview = await shell.overlay.webContents.executeJavaScript(
+        'document.querySelector("main").dataset.state === "listening" && document.querySelector("output").textContent !== "Listening"',
+      );
+      const untouched = await editor.webContents.executeJavaScript(
+        'document.querySelector("textarea").value === ""',
+      );
+      if (!preview || !untouched)
+        throw Error(
+          "Expected a live preview and an empty target before release.",
+        );
+      console.log("Live preview appeared before release with an empty target.");
+    }
     const edge = performance.now();
     helper.stdin.write("test-release\n");
     let text = "";

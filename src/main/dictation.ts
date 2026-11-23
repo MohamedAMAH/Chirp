@@ -24,6 +24,8 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     { stdio: "ignore" },
   );
   let connected = false,
+    streaming = false,
+    listening = false,
     loaded = false,
     closing = false;
   let active: number | undefined,
@@ -32,9 +34,16 @@ export function startDictation(shell: Shell, helper = openHelper()) {
   const send = (command: string) => {
     if (!closing && helper.stdin.writable) helper.stdin.write(command + "\n");
   };
-  function reset(message?: string) {
+  function clearSession() {
+    if (active !== undefined && streaming && loaded)
+      worker.postMessage({ init: false, id: active, action: "cancel" });
     active = undefined;
     paste = undefined;
+    listening = false;
+    if (!closing) shell.overlay.webContents.send("capture-cancel");
+  }
+  function reset(message?: string) {
+    clearSession();
     if (!connected || !loaded || closing) return;
     send("arm");
     shell.status("Ready · " + model);
@@ -42,10 +51,8 @@ export function startDictation(shell: Shell, helper = openHelper()) {
     else shell.hide();
   }
   function fail(message: string) {
-    active = undefined;
-    paste = undefined;
+    clearSession();
     if (closing) return;
-    shell.overlay.webContents.send("capture-cancel");
     shell.hide();
     shell.status(message);
   }
@@ -68,18 +75,21 @@ export function startDictation(shell: Shell, helper = openHelper()) {
         break;
       case "down":
         active = Number(n);
+        listening = true;
+        if (streaming)
+          worker.postMessage({ init: false, id: active, action: "start" });
         shell.position(Number(x), Number(y));
         shell.show("Listening");
-        shell.overlay.webContents.send("capture-start", active);
+        shell.overlay.webContents.send("capture-start", active, streaming);
         break;
       case "up":
         if (active === Number(n)) {
+          listening = false;
           shell.show("Transcribing");
           shell.overlay.webContents.send("capture-stop", active);
         }
         break;
       case "cancel":
-        shell.overlay.webContents.send("capture-cancel");
         reset();
         break;
       case "busy": {
@@ -105,15 +115,30 @@ export function startDictation(shell: Shell, helper = openHelper()) {
         break;
     }
   });
-  ipcMain.on("audio", (event, id: number, samples: Float32Array) => {
-    if (closing || event.sender !== shell.overlay.webContents || id !== active)
-      return;
-    if (!samples.length) {
-      reset("No speech");
-      return;
-    }
-    worker.postMessage({ init: false, id, samples });
-  });
+  ipcMain.on(
+    "audio",
+    (event, id: number, samples: Float32Array, chunk = false) => {
+      if (
+        closing ||
+        event.sender !== shell.overlay.webContents ||
+        id !== active
+      )
+        return;
+      if (streaming) {
+        worker.postMessage(
+          chunk
+            ? { init: false, action: "chunk", id, samples }
+            : { init: false, action: "finish", id },
+        );
+        return;
+      }
+      if (!samples.length) {
+        reset("No speech");
+        return;
+      }
+      worker.postMessage({ init: false, id, samples });
+    },
+  );
   ipcMain.on("mic-error", (event, id: number) => {
     if (event.sender === shell.overlay.webContents && id === active)
       reset("Microphone unavailable");
@@ -121,6 +146,7 @@ export function startDictation(shell: Shell, helper = openHelper()) {
   worker.on("message", (result) => {
     if (closing) return;
     if (result.ready) {
+      streaming = result.streaming === true;
       loaded = true;
       reset();
       return;
@@ -130,6 +156,11 @@ export function startDictation(shell: Shell, helper = openHelper()) {
       return;
     }
     if (result.id !== active || !connected) return;
+    if (result.preview !== undefined) {
+      if (listening)
+        shell.overlay.webContents.send("preview", active, result.preview);
+      return;
+    }
     if (!result.text) {
       reset(result.failure || "No speech");
       return;

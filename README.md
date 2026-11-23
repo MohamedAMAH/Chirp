@@ -29,6 +29,23 @@ $chirp = (Get-ItemPropertyValue 'HKCU:\Software\Microsoft\Windows\CurrentVersion
 & $chirp
 ```
 
+### Try Parakeet streaming
+
+From a source checkout, quit the running copy and start Chirp with this setting
+in PowerShell. It applies to this shell.
+
+```powershell
+$env:CHIRP_ASR_MODEL = 'parakeet-streaming'
+npm start
+```
+
+This optional adapter uses the bundled Windows CPU engine. Hold Right Alt to see
+the latest words in the indicator. It updates about every two seconds, revises
+the current phrase, and pastes the completed text once on release. A pause ends
+a phrase. During continuous speech the adapter splits the audio near a quiet
+point to bound the work left at release. Choose `parakeet` or `qwen` for the
+original whole-recording adapters.
+
 ## Build from source
 
 Use Windows x64, Node.js 24 or newer, and Visual Studio Build Tools with the **Desktop development with C++** workload and Windows SDK. Run these commands from the repository root.

@@ -2,6 +2,7 @@ import { ipcRenderer } from "electron";
 interface Recording {
   id: number;
   chunks: Float32Array[];
+  streaming: boolean;
   stream?: MediaStream;
   context?: AudioContext;
   input?: AudioWorkletNode;
@@ -42,43 +43,47 @@ function finish(r: Recording) {
   close(r);
   ipcRenderer.send("audio", r.id, audio);
 }
-ipcRenderer.on("capture-start", async (_event, id: number) => {
-  if (recording) close(recording);
-  const r: Recording = { id, chunks: [] };
-  recording = r;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1 },
-      video: false,
-    });
-    if (recording !== r) {
-      stream.getTracks().forEach((track) => track.stop());
-      return;
-    }
-    r.stream = stream;
-    const ctx = (r.context = new AudioContext({ sampleRate: 16000 }));
-    await ctx.audioWorklet.addModule("../../out/renderer/processor.js");
-    if (recording !== r) return;
-    const input = (r.input = new AudioWorkletNode(ctx, "chirp-capture", {
-      numberOfOutputs: 0,
-    }));
-    input.port.onmessage = ({ data }) => {
-      if (recording !== r) return;
-      if (data === "end") finish(r);
-      else {
-        r.chunks.push(data);
-        updateMeter(data);
+ipcRenderer.on(
+  "capture-start",
+  async (_event, id: number, streaming = false) => {
+    if (recording) close(recording);
+    const r: Recording = { id, chunks: [], streaming };
+    recording = r;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1 },
+        video: false,
+      });
+      if (recording !== r) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
-    };
-    ctx.createMediaStreamSource(stream).connect(input);
-    await ctx.resume();
-  } catch {
-    if (recording === r) {
-      close(r);
-      ipcRenderer.send("mic-error", id);
+      r.stream = stream;
+      const ctx = (r.context = new AudioContext({ sampleRate: 16000 }));
+      await ctx.audioWorklet.addModule("../../out/renderer/processor.js");
+      if (recording !== r) return;
+      const input = (r.input = new AudioWorkletNode(ctx, "chirp-capture", {
+        numberOfOutputs: 0,
+      }));
+      input.port.onmessage = ({ data }) => {
+        if (recording !== r) return;
+        if (data === "end") finish(r);
+        else {
+          if (r.streaming) ipcRenderer.send("audio", r.id, data, true);
+          else r.chunks.push(data);
+          updateMeter(data);
+        }
+      };
+      ctx.createMediaStreamSource(stream).connect(input);
+      await ctx.resume();
+    } catch {
+      if (recording === r) {
+        close(r);
+        ipcRenderer.send("mic-error", id);
+      }
     }
-  }
-});
+  },
+);
 ipcRenderer.on("capture-stop", (_event, id: number) => {
   const r = recording;
   if (!r || r.id !== id) return;
@@ -97,6 +102,15 @@ window.addEventListener("DOMContentLoaded", () => {
   const indicator = document.querySelector("main")!;
   const output = document.querySelector("output")!;
   meterBars = document.querySelectorAll(".wave i");
+  ipcRenderer.on("preview", (_event, id: number, text: string) => {
+    if (id !== recording?.id || indicator.dataset.state !== "listening") return;
+    output.textContent = text;
+    output.scrollLeft = output.scrollWidth;
+  });
+  ipcRenderer.on("capture-cancel", () => {
+    if (indicator.dataset.state === "listening")
+      output.textContent = "Listening";
+  });
   ipcRenderer.on("indicator", (_event, text: string) => {
     indicator.dataset.state = ["Listening", "Transcribing", "Copied"].includes(
       text,
