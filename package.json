@@ -18,12 +18,15 @@
     "dist": "npm run models && npm run native && npm run build && electron-builder --win nsis --x64",
     "compare": "npm run build && node scripts/compare.cjs",
     "test:capture": "npm run build && electron tests/electron-smoke.cjs",
-    "test:paste": "npm run build && scripts\\native.cmd test && electron tests/paste-smoke.cjs"
+    "test:paste": "npm run build && scripts\\native.cmd test && electron tests/paste-smoke.cjs",
+    "format": "prettier --write src tests/*.cjs scripts/*.cjs scripts/*.mjs",
+    "check:format": "prettier --check src tests/*.cjs scripts/*.cjs scripts/*.mjs"
   },
   "devDependencies": {
     "@types/node": "24.5.2",
     "electron": "45.4.1",
     "electron-builder": "26.18.0",
+    "prettier": "3.6.2",
     "typescript": "5.9.3"
   },
   "dependencies": {
