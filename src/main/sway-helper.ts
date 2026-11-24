@@ -2,7 +2,7 @@ import { execFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { createConnection } from "node:net";
 import { promisify } from "node:util";
-import { swayAppId, swayTarget } from "./sway";
+import { swayAppId, swayIndicatorTitle, swayTarget } from "./sway";
 
 const run = promisify(execFile);
 const subscriptions = Buffer.from(
@@ -163,7 +163,8 @@ subscription.on("data", (chunk) => {
         focusRevision++;
       } else if (
         event.change === "new" &&
-        event.container?.app_id === swayAppId
+        event.container?.app_id === swayAppId &&
+        event.container?.name === swayIndicatorTitle
       ) {
         emit("indicator-mapped");
       } else if (event.binding?.command?.startsWith("nop chirp:")) {

@@ -41,12 +41,14 @@ export async function swayTarget() {
     return target;
 }
 
+export const swayIndicatorTitle = "Chirp indicator";
+
 export async function moveSwayIndicator(x: number, y: number) {
   await run(
     "swaymsg",
     [
       "-q",
-      `[app_id="^${swayAppId.replaceAll(".", "[.]")}$"] move absolute position ${Math.round(x)} px ${Math.round(y)} px`,
+      `[app_id="^${swayAppId.replaceAll(".", "[.]")}$" title="^${swayIndicatorTitle}$"] move absolute position ${Math.round(x)} px ${Math.round(y)} px`,
     ],
     { timeout: 1500 },
   );
