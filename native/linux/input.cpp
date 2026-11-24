@@ -50,7 +50,8 @@ class Input {
     int xiOpcode = 0;
     unsigned session = 0, lockMask = LockMask;
     bool armed = false, held = false, chord = false, focusChanged = false;
-    bool autoEnter = false, submit = false, enterPending = false;
+    bool copyOnly = false, autoEnter = false, submit = false, enterPending = false;
+    std::chrono::milliseconds pasteSettle{600};
     bool enterKeyHeld = false, modeKeyHeld = false;
     std::string text;
     Clock::time_point pasteDeadline{}, enterDeadline{};
@@ -151,7 +152,7 @@ class Input {
             pasteDeadline = {};
             if (submit && autoEnter) {
                 enterPending = true;
-                enterDeadline = Clock::now() + 600ms;
+                enterDeadline = Clock::now() + pasteSettle;
             } else emit("pasted");
         }
     }
@@ -194,9 +195,7 @@ class Input {
             modeKeyHeld = false;
         } else if (event.type == KeyPress && event.xkey.keycode == toggleEnter && !enterKeyHeld) {
             enterKeyHeld = true;
-            autoEnter = !autoEnter;
-            if (!autoEnter) submit = false;
-            nearPointer(autoEnter ? "auto-enter on" : "auto-enter off");
+            nearPointer("toggle-auto-enter");
         } else if (event.type == KeyPress && event.xkey.keycode == toggleMode && !modeKeyHeld) {
             modeKeyHeld = true;
             nearPointer("toggle-mode");
@@ -236,7 +235,7 @@ class Input {
             return;
         }
         const bool terminal = isTerminal();
-        if (!canSend() || (terminal && text.find_first_of("\r\n") != std::string::npos)) {
+        if (copyOnly || !canSend() || (terminal && text.find_first_of("\r\n") != std::string::npos)) {
             emit("copied");
             return;
         }
@@ -329,6 +328,16 @@ public:
                 if (command == "quit") return;
                 if (command == "arm") armed = true;
                 if (command == "disarm") armed = false;
+                if (command == "delivery") {
+                    bool copy, enter;
+                    unsigned delay;
+                    if (line >> copy >> enter >> delay && delay >= 300 && delay <= 2000) {
+                        copyOnly = copy;
+                        autoEnter = enter && !copy;
+                        pasteSettle = std::chrono::milliseconds(delay);
+                        if (!autoEnter) submit = false;
+                    }
+                }
                 if (command == "paste") {
                     unsigned id;
                     std::string hex;

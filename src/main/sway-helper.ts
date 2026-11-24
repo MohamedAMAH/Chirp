@@ -32,6 +32,7 @@ let capture:
     }
   | undefined;
 let held = false;
+let copyOnly = false;
 let closed = false;
 let pending = Promise.resolve();
 
@@ -86,7 +87,7 @@ async function binding(command: string, revision: number) {
   if (command === "nop chirp:mode") {
     emit("toggle-mode " + point);
   } else if (command === "nop chirp:auto-enter") {
-    emit("auto-enter unavailable " + point);
+    emit("toggle-auto-enter " + point);
   } else if (command === "nop chirp:down" && armed && !held) {
     armed = false;
     held = true;
@@ -111,6 +112,7 @@ async function paste(id: number, hex: string) {
   await copy(text);
   const original = recording.target;
   if (
+    copyOnly ||
     !original ||
     original.app_id === swayAppId ||
     /[\r\n]/.test(text.toString("utf8")) ||
@@ -184,6 +186,7 @@ commands.on("line", (line) => {
   if (command === "quit") close();
   else if (command === "arm") armed = true;
   else if (command === "disarm") armed = false;
+  else if (command === "delivery") copyOnly = id === "1";
   else if (command === "paste") enqueue(() => paste(Number(id), hex));
 });
 commands.on("close", () => close());

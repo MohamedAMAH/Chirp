@@ -279,6 +279,10 @@
                   <dt>Microphone</dt>
                   <dd>System default</dd>
                 </div>
+                <div>
+                  <dt>Auto-Enter</dt>
+                  <dd id="live-auto-enter">—</dd>
+                </div>
               </dl>
             </div>
           </div>
@@ -522,17 +526,23 @@
                 <span class="name">Result</span>
                 <span class="hint">Copy only never presses Ctrl+V.</span>
               </div>
-              <fieldset class="segmented">
+              <fieldset class="segmented" id="delivery-choice" disabled>
                 <legend class="sr">After dictation</legend>
                 <label
-                  ><input type="radio" name="output" checked /><span
-                    >Paste</span
-                  ></label
+                  ><input
+                    type="radio"
+                    name="output"
+                    data-setting="delivery"
+                    value="paste"
+                  /><span>Paste</span></label
                 >
                 <label
-                  ><input type="radio" name="output" /><span
-                    >Copy only</span
-                  ></label
+                  ><input
+                    type="radio"
+                    name="output"
+                    data-setting="delivery"
+                    value="copy"
+                  /><span>Copy only</span></label
                 >
               </fieldset>
             </div>
@@ -550,14 +560,22 @@
         <div class="group">
           <h2>Auto-Enter</h2>
           <div class="card">
-            <div class="row today">
+            <div class="row">
               <div class="text">
                 <label class="name" for="enter"
                   >Press Enter after pasting</label
                 >
-                <span class="hint">Press Ctrl+B for now.</span>
+                <span class="hint" id="auto-enter-hint"
+                  >Ctrl+B also toggles Auto-Enter.</span
+                >
               </div>
-              <input id="enter" type="checkbox" role="switch" disabled />
+              <input
+                id="enter"
+                data-setting="autoEnter"
+                type="checkbox"
+                role="switch"
+                disabled
+              />
             </div>
             <div class="row">
               <div class="text">
@@ -570,13 +588,15 @@
               <div class="slider">
                 <input
                   id="delay"
+                  data-setting="autoEnterDelay"
                   type="range"
                   min="300"
                   max="2000"
                   step="50"
                   value="600"
+                  disabled
                 />
-                <output for="delay">600 ms</output>
+                <output id="delay-value" for="delay">600 ms</output>
               </div>
             </div>
           </div>

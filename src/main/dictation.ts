@@ -21,6 +21,14 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   const send = (command: string) => {
     if (!closing && helper.stdin.writable) helper.stdin.write(command + "\n");
   };
+  function configureDelivery() {
+    const { preferences, canAutoEnter } = state.snapshot;
+    const copy = preferences.delivery === "copy";
+    const submit = canAutoEnter && preferences.autoEnter && !copy;
+    send(
+      `delivery ${Number(copy)} ${Number(submit)} ${preferences.autoEnterDelay}`,
+    );
+  }
   function clearSession() {
     if (active !== undefined && captureStreaming && loaded)
       worker?.postMessage({ init: false, id: active, action: "cancel" });
@@ -87,6 +95,8 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     if (key === "model") loadModel();
     if (key === "streaming" && loaded && connected && active === undefined)
       shell.status("Ready");
+    if (key === "delivery" || key === "autoEnter" || key === "autoEnterDelay")
+      configureDelivery();
   });
   helper.stdin.on("error", () => {});
   helper.on("error", () => {
@@ -122,14 +132,27 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
         );
         break;
       }
-      case "auto-enter":
-        shell.notify("Auto-Enter " + n, Number(x), Number(y));
+      case "toggle-auto-enter": {
+        const { preferences, canAutoEnter } = state.snapshot;
+        const on = !preferences.autoEnter;
+        let notice = "Auto-Enter unavailable";
+        if (canAutoEnter && preferences.delivery === "paste") {
+          try {
+            state.set("autoEnter", on);
+            notice = "Auto-Enter " + (on ? "on" : "off");
+          } catch {
+            notice = "Could not save Auto-Enter";
+          }
+        }
+        shell.notify(notice, Number(n), Number(x));
         break;
+      }
       case "shortcut-unavailable":
         shell.notify(n + " unavailable", Number(x), Number(y));
         break;
       case "connected":
         connected = true;
+        configureDelivery();
         reset();
         break;
       case "down":

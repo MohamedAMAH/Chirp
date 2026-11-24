@@ -1,6 +1,9 @@
 export interface Preferences {
   model: "qwen" | "parakeet";
   streaming: boolean;
+  delivery: "paste" | "copy";
+  autoEnter: boolean;
+  autoEnterDelay: number;
 }
 
 export interface DashboardState {
@@ -8,6 +11,7 @@ export interface DashboardState {
   model: Preferences["model"];
   modelOverride: boolean;
   status: string;
+  canAutoEnter: boolean;
 }
 
 export interface DashboardBridge {

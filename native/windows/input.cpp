@@ -12,12 +12,12 @@ namespace {
 HWND owner, destination;
 DWORD destinationPid;
 bool armed, held, chord, forwardAlt, focusChanged;
-bool autoEnter, submitThisHold;
+bool copyOnly, autoEnter, submitThisHold;
 bool waitingToSubmit;
 unsigned session;
 constexpr UINT Command=WM_APP+1;
 constexpr UINT_PTR AutoEnterTimer=73;
-constexpr UINT PasteSettleMs=600;
+UINT pasteSettleMs=600;
 constexpr int ToggleAutoEnter=1;
 constexpr int ToggleMode=2;
 void emit(const std::string& line) { std::cout << line << std::endl; }
@@ -36,9 +36,9 @@ void pasteRead() {
     }
     // A clipboard read can precede delivery to the editor. Integrated
     // terminals share their window with the rest of the application.
-    waitingToSubmit=SetTimer(owner,AutoEnterTimer,PasteSettleMs,nullptr)!=0;
+    waitingToSubmit=SetTimer(owner,AutoEnterTimer,pasteSettleMs,nullptr)!=0;
     if(waitingToSubmit)
-        SetTimer(owner,clipboard::Timer,PasteSettleMs+clipboard::RestoreDelayMs,nullptr);
+        SetTimer(owner,clipboard::Timer,pasteSettleMs+clipboard::RestoreDelayMs,nullptr);
     else emit("enter-skipped");
 }
 
@@ -79,9 +79,7 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         return 0;
     }
     if(msg==WM_HOTKEY && wp==ToggleAutoEnter) {
-        autoEnter=!autoEnter;
-        if(!autoEnter)submitThisHold=false;
-        emitNearWindow(autoEnter?"auto-enter on":"auto-enter off",GetForegroundWindow());
+        emitNearWindow("toggle-auto-enter",GetForegroundWindow());
         return 0;
     }
     if(msg==WM_TIMER && wp==AutoEnterTimer) {
@@ -106,6 +104,17 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         if(*line=="quit") PostQuitMessage(0);
         if(*line=="arm") armed=true;
         if(*line=="disarm") armed=false;
+        if(line->rfind("delivery ",0)==0) {
+            std::istringstream fields(line->substr(9));
+            bool copy, submit;
+            UINT delay;
+            if(fields>>copy>>submit>>delay && delay>=300 && delay<=2000) {
+                copyOnly=copy;
+                autoEnter=submit && !copy;
+                pasteSettleMs=delay;
+                if(!autoEnter)submitThisHold=false;
+            }
+        }
 #ifdef CHIRP_TEST_INPUT
         if(line->rfind("test-quit ",0)==0){
             if(reinterpret_cast<UINT_PTR>(GetForegroundWindow())!=std::stoull(line->substr(10))){
@@ -153,7 +162,7 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
             if(!(fields>>id>>hex)){emit("paste-error");return 0;}
             const auto text=clipboard::fromHex(hex);
             auto result=text.empty()?"paste-error":clipboard::deliver(owner,destination,destinationPid,
-                 session==id && !focusChanged,text);
+                 session==id && !focusChanged && !copyOnly,text);
             if(result!="pending")emit(result);
         }
         return 0;

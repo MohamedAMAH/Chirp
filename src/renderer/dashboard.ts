@@ -37,10 +37,32 @@
       modelOverride;
     document.querySelector<HTMLFieldSetElement>("#mode-choice")!.disabled =
       false;
+    document.querySelector<HTMLFieldSetElement>("#delivery-choice")!.disabled =
+      false;
+    const canSubmit = state.canAutoEnter && preferences.delivery === "paste";
+    document.querySelector<HTMLInputElement>("#enter")!.disabled = !canSubmit;
+    document.querySelector<HTMLInputElement>("#delay")!.disabled =
+      !canSubmit || !preferences.autoEnter;
+    setText("delay-value", `${preferences.autoEnterDelay} ms`);
+    setText(
+      "live-auto-enter",
+      canSubmit ? (preferences.autoEnter ? "On" : "Off") : "Unavailable",
+    );
+    setText(
+      "auto-enter-hint",
+      !state.canAutoEnter
+        ? "Auto-Enter is unavailable on Sway."
+        : preferences.delivery === "copy"
+          ? "Choose Paste to use Auto-Enter."
+          : "Ctrl+B also toggles Auto-Enter.",
+    );
     for (const field of fields) {
       const key = field.dataset.setting as keyof Preferences;
       const value = key === "model" ? model : preferences[key];
-      field.checked = field.value === String(value);
+      if (field.type === "radio") field.checked = field.value === String(value);
+      else if (field.type === "checkbox")
+        field.checked = Boolean(value) && (key !== "autoEnter" || canSubmit);
+      else field.value = String(value);
     }
   }
   async function save(key: keyof Preferences, value: unknown) {
@@ -57,14 +79,23 @@
     .then(render, () => showError("Chirp could not load its settings."));
   for (const field of fields) {
     field.addEventListener("change", () => {
-      if (!field.checked) return;
+      if (field.type === "radio" && !field.checked) return;
       const key = field.dataset.setting as keyof Preferences;
-      void save(
-        key,
-        key === "streaming" ? field.value === "true" : field.value,
-      );
+      const value =
+        field.type === "checkbox"
+          ? field.checked
+          : field.type === "range"
+            ? field.valueAsNumber
+            : key === "streaming"
+              ? field.value === "true"
+              : field.value;
+      void save(key, value);
     });
   }
+  const delay = document.querySelector<HTMLInputElement>("#delay")!;
+  delay.addEventListener("input", () =>
+    setText("delay-value", `${delay.value} ms`),
+  );
 
   // The page's security policy blocks inline style attributes, so chart
   // heights and animation delays arrive as data attributes.

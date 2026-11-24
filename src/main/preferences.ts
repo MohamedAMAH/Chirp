@@ -2,12 +2,17 @@ import { app } from "electron";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { DashboardState, Preferences } from "../shared/dashboard";
+import { isSway } from "./sway";
 
 const validators: {
   [K in keyof Preferences]: (v: unknown) => v is Preferences[K];
 } = {
   model: (v): v is Preferences["model"] => v === "qwen" || v === "parakeet",
   streaming: (v): v is boolean => typeof v === "boolean",
+  delivery: (v): v is Preferences["delivery"] => v === "paste" || v === "copy",
+  autoEnter: (v): v is boolean => typeof v === "boolean",
+  autoEnterDelay: (v): v is number =>
+    typeof v === "number" && v >= 300 && v <= 2000 && v % 50 === 0,
 };
 
 function validPreference<K extends keyof Preferences>(
@@ -27,6 +32,9 @@ export class ChirpState {
   private readonly preferences: Preferences = {
     model: "qwen",
     streaming: this.override === "parakeet-streaming",
+    delivery: "paste",
+    autoEnter: false,
+    autoEnterDelay: 600,
   };
   private status = "Loading";
 
@@ -56,6 +64,7 @@ export class ChirpState {
       model: model ?? this.preferences.model,
       modelOverride: model !== undefined,
       status: this.status,
+      canAutoEnter: !isSway(),
     };
   }
 
