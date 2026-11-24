@@ -20,6 +20,12 @@ export interface MicrophoneLevel {
   error?: string;
 }
 
+export interface DictationTotals {
+  words: number;
+  dictations: number;
+  seconds: number;
+}
+
 export interface DashboardState {
   preferences: Preferences;
   model: Preferences["model"];
@@ -29,6 +35,11 @@ export interface DashboardState {
   canUseClipboardHistory: boolean;
   microphones: Microphone[];
   startup: { enabled: boolean; available: boolean };
+  activity: {
+    thisWeek: DictationTotals;
+    allTime: DictationTotals;
+    dailyWords: number[];
+  };
 }
 
 export interface DashboardBridge {

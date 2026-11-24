@@ -18,6 +18,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     starting: number | undefined,
     paste: string | undefined,
     attempts = 0;
+  let capturedSamples = 0;
   const send = (command: string) => {
     if (!closing && helper.stdin.writable) helper.stdin.write(command + "\n");
   };
@@ -163,6 +164,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       case "down":
         if (!loaded || !connected || active !== undefined) break;
         active = Number(n);
+        capturedSamples = 0;
         starting = active;
         captureStreaming = state.snapshot.preferences.streaming;
         if (captureStreaming)
@@ -235,6 +237,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
         id !== active
       )
         return;
+      capturedSamples += samples.length;
       if (captureStreaming) {
         worker?.postMessage(
           chunk
@@ -275,6 +278,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       reset(result.failure || "No speech");
       return;
     }
+    state.recordDictation(result.text, capturedSamples);
     paste =
       "paste " +
       active +

@@ -2,6 +2,7 @@
   type DashboardBridge = import("../shared/dashboard").DashboardBridge;
   type DashboardState = import("../shared/dashboard").DashboardState;
   type Preferences = import("../shared/dashboard").Preferences;
+  type DictationTotals = import("../shared/dashboard").DictationTotals;
   const bridge = (window as unknown as { chirpWindow?: DashboardBridge })
     .chirpWindow;
   const fields = document.querySelectorAll<HTMLInputElement>("[data-setting]");
@@ -33,6 +34,7 @@
     );
     setText("live-status", state.status);
     setText("live-model", model === "qwen" ? "Qwen" : "Parakeet");
+    renderActivity(state.activity);
     renderMicrophones?.(state);
     setText(
       "live-mode",
@@ -152,16 +154,63 @@
   });
   window.addEventListener("blur", () => renderLevel(0, false));
 
-  // The page's security policy blocks inline style attributes, so chart
-  // heights and animation delays arrive as data attributes.
-  for (const el of document.querySelectorAll<HTMLElement>("[data-h]"))
-    el.style.setProperty("--h", `${el.dataset.h}%`);
+  const counts = document.querySelectorAll<HTMLElement>(".count");
+  const allTimeCounts = document.querySelectorAll<HTMLElement>(".tile-total");
+  const bars = document.querySelector<HTMLElement>(".bars")!;
+  const columns = document.querySelectorAll<HTMLElement>(".col");
+  const format = new Intl.NumberFormat();
+  let lastActivity = "";
+  function activityValues({ words, dictations, seconds }: DictationTotals) {
+    return [
+      words,
+      dictations,
+      Math.round(seconds / 60),
+      Math.max(0, Math.round(words / 40 - seconds / 60)),
+    ];
+  }
+  function renderActivity(activity: DashboardState["activity"]) {
+    const data = JSON.stringify(activity);
+    if (lastActivity === data) return;
+    const animate = lastActivity === "";
+    lastActivity = data;
+    activityValues(activity.thisWeek).forEach((value, index) => {
+      counts[index].dataset.value = String(value);
+      counts[index].textContent = format.format(value);
+    });
+    activityValues(activity.allTime).forEach((value, index) => {
+      allTimeCounts[index].textContent =
+        `${format.format(value)}${index > 1 ? " min" : ""} all time`;
+    });
+    const max = Math.max(...activity.dailyWords);
+    const dailySummary: string[] = [];
+    columns.forEach((column, day) => {
+      const words = activity.dailyWords[day];
+      column.style.setProperty("--h", `${max ? (words / max) * 100 : 0}%`);
+      column.classList.toggle("peak", words > 0 && words === max);
+      column.querySelector(".val")!.textContent = format.format(words);
+      dailySummary.push(
+        `${column.querySelector(".day")!.textContent} ${format.format(words)}`,
+      );
+    });
+    bars.setAttribute(
+      "aria-label",
+      `Words dictated this week. ${dailySummary.join(", ")}.`,
+    );
+    countAnimation++;
+    if (
+      animate &&
+      !document.querySelector<HTMLElement>("#panel-overview")!.hidden
+    )
+      countUp();
+  }
   for (const el of document.querySelectorAll<HTMLElement>("[data-i]"))
     el.style.setProperty("--i", el.dataset.i ?? "0");
 
   // Numbers on the Overview count up from zero each time it is shown.
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let countAnimation = 0;
   function countUp() {
+    const animation = ++countAnimation;
     for (const el of document.querySelectorAll<HTMLElement>(".count")) {
       const target = Number(el.dataset.value);
       if (reduceMotion) {
@@ -170,6 +219,7 @@
       }
       const start = performance.now();
       const tick = (now: number) => {
+        if (animation !== countAnimation) return;
         const t = Math.min(1, (now - start) / 1000);
         const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
         el.textContent = Math.round(target * eased).toLocaleString("en-US");
@@ -346,8 +396,6 @@
     );
     for (const tab of tabs) tab.addEventListener("click", close);
   }
-
-  countUp();
 
   const maximize = document.getElementById("maximize");
   document

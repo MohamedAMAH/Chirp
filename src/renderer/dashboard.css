@@ -585,6 +585,9 @@ input[type="range"] {
     sans-serif;
   color: var(--muted);
 }
+.tile .tile-total {
+  margin-top: 5px;
+}
 .tile.accent {
   border-color: var(--forest);
   background: var(--forest);
@@ -628,7 +631,7 @@ input[type="range"] {
 .fill {
   width: 100%;
   max-width: 32px;
-  height: var(--h);
+  height: var(--h, 0%);
   border-radius: 9px 9px 5px 5px;
   background: color-mix(in srgb, var(--sage) 62%, var(--cream));
   transform-origin: bottom;

@@ -7,6 +7,7 @@ import type {
   Preferences,
 } from "../shared/dashboard";
 import { isSway } from "./sway";
+import { DictationActivity } from "./activity";
 
 const validators: {
   [K in keyof Preferences]: (v: unknown) => v is Preferences[K];
@@ -36,6 +37,9 @@ export class ChirpState {
     "preferences.json",
   );
   private readonly override = process.env.CHIRP_ASR_MODEL;
+  private readonly activity = new DictationActivity(
+    path.join(app.getPath("userData"), "activity.json"),
+  );
   private readonly listeners = new Set<(key?: keyof Preferences) => void>();
   private readonly preferences: Preferences = {
     model: "qwen",
@@ -82,6 +86,7 @@ export class ChirpState {
       canUseClipboardHistory: process.platform === "win32",
       microphones: this.microphones,
       startup: this.startup,
+      activity: this.activity.snapshot,
     };
   }
 
@@ -104,6 +109,11 @@ export class ChirpState {
   setMicrophones(devices: Microphone[]) {
     if (JSON.stringify(devices) === JSON.stringify(this.microphones)) return;
     this.microphones = devices;
+    this.listeners.forEach((listener) => listener());
+  }
+
+  recordDictation(text: string, samples: number) {
+    this.activity.record(text, samples);
     this.listeners.forEach((listener) => listener());
   }
 
