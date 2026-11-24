@@ -328,6 +328,7 @@ public:
                 line >> command;
                 if (command == "quit") return;
                 if (command == "arm") armed = true;
+                if (command == "disarm") armed = false;
                 if (command == "paste") {
                     unsigned id;
                     std::string hex;

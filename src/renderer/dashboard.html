@@ -158,6 +158,12 @@
     </nav>
 
     <main>
+      <output
+        id="settings-message"
+        class="settings-message"
+        role="status"
+        hidden
+      ></output>
       <section
         id="panel-overview"
         role="tabpanel"
@@ -257,16 +263,17 @@
             <h2>Right now</h2>
             <div class="card status-card">
               <p class="state">
-                <span class="dot" aria-hidden="true"></span>Ready
+                <span class="dot" aria-hidden="true"></span
+                ><span id="live-status">Loading</span>
               </p>
               <dl>
                 <div>
                   <dt>Model</dt>
-                  <dd>Qwen</dd>
+                  <dd id="live-model">—</dd>
                 </div>
                 <div>
                   <dt>Mode</dt>
-                  <dd>Whole recording</dd>
+                  <dd id="live-mode">—</dd>
                 </div>
                 <div>
                   <dt>Microphone</dt>
@@ -288,41 +295,55 @@
         <div class="group">
           <h2>Speech</h2>
           <div class="card">
-            <div class="row today">
+            <div class="row">
               <div class="text">
                 <span class="name">Speech model</span>
-                <span class="hint">Set CHIRP_ASR_MODEL for now.</span>
+                <span class="hint" id="model-hint"
+                  >Changes apply to the next dictation.</span
+                >
               </div>
-              <fieldset class="segmented" disabled>
+              <fieldset class="segmented" id="model-choice" disabled>
                 <legend class="sr">Speech model</legend>
                 <label
-                  ><input type="radio" name="model" checked /><span
-                    >Qwen</span
-                  ></label
+                  ><input
+                    type="radio"
+                    name="model"
+                    value="qwen"
+                    data-setting="model"
+                  /><span>Qwen</span></label
                 >
                 <label
-                  ><input type="radio" name="model" /><span
-                    >Parakeet</span
-                  ></label
+                  ><input
+                    type="radio"
+                    name="model"
+                    value="parakeet"
+                    data-setting="model"
+                  /><span>Parakeet</span></label
                 >
               </fieldset>
             </div>
-            <div class="row today">
+            <div class="row">
               <div class="text">
                 <span class="name">Mode</span>
-                <span class="hint">Press Ctrl+N for now.</span>
+                <span class="hint">Ctrl+N also switches modes.</span>
               </div>
-              <fieldset class="segmented" disabled>
+              <fieldset class="segmented" id="mode-choice" disabled>
                 <legend class="sr">Mode</legend>
                 <label
-                  ><input type="radio" name="mode" /><span
-                    >Streaming</span
-                  ></label
+                  ><input
+                    type="radio"
+                    name="mode"
+                    value="true"
+                    data-setting="streaming"
+                  /><span>Streaming</span></label
                 >
                 <label
-                  ><input type="radio" name="mode" checked /><span
-                    >Whole recording</span
-                  ></label
+                  ><input
+                    type="radio"
+                    name="mode"
+                    value="false"
+                    data-setting="streaming"
+                  /><span>Whole recording</span></label
                 >
               </fieldset>
             </div>

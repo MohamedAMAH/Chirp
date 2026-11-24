@@ -5,15 +5,12 @@ import { Shell } from "./shell";
 import { openDesktopHelper } from "./desktop";
 
 export function startDictation(shell: Shell, helper = openDesktopHelper()) {
-  const model = process.env.CHIRP_ASR_MODEL ?? "qwen";
+  const state = shell.state;
   const base = app.isPackaged ? process.resourcesPath : app.getAppPath();
-  const worker = utilityProcess.fork(
-    path.join(__dirname, "../speech/worker.js"),
-    [],
-    { stdio: "ignore" },
-  );
+  let worker: Electron.UtilityProcess | undefined;
+  let workerModel: "qwen" | "parakeet" | undefined;
+  let retiring = false;
   let connected = false,
-    streaming = model === "parakeet-streaming",
     captureStreaming = false,
     loaded = false,
     closing = false;
@@ -26,7 +23,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   };
   function clearSession() {
     if (active !== undefined && captureStreaming && loaded)
-      worker.postMessage({ init: false, id: active, action: "cancel" });
+      worker?.postMessage({ init: false, id: active, action: "cancel" });
     active = undefined;
     starting = undefined;
     paste = undefined;
@@ -34,19 +31,16 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   }
   function reset(message?: string) {
     clearSession();
+    if (workerModel !== state.snapshot.model) {
+      shell.hide();
+      loadModel();
+      return;
+    }
     if (!connected || !loaded || closing) return;
     send("arm");
-    updateReadyStatus();
+    shell.status("Ready");
     if (message) shell.show(message, true);
     else shell.hide();
-  }
-  function updateReadyStatus() {
-    shell.status(
-      "Ready · " +
-        model.replace(/-streaming$/, "") +
-        " · " +
-        (streaming ? "Streaming" : "Whole recording"),
-    );
   }
   function fail(message: string) {
     clearSession();
@@ -54,6 +48,46 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     shell.hide();
     shell.status(message);
   }
+  function loadModel() {
+    if (closing || active !== undefined || retiring) return;
+    const { model } = state.snapshot;
+    if (worker && workerModel === model) return;
+    loaded = false;
+    send("disarm");
+    shell.status("Loading model…");
+    if (worker) {
+      retiring = true;
+      worker.kill();
+      return;
+    }
+    const current = utilityProcess.fork(
+      path.join(__dirname, "../speech/worker.js"),
+      [],
+      { stdio: "ignore" },
+    );
+    worker = current;
+    workerModel = model;
+    current.on("message", handleResult);
+    current.on("exit", () => {
+      worker = undefined;
+      loaded = false;
+      if (closing) return;
+      if (retiring) {
+        retiring = false;
+        loadModel();
+      } else {
+        send("disarm");
+        fail("Speech engine stopped");
+        if (workerModel !== state.snapshot.model) loadModel();
+      }
+    });
+    current.postMessage({ init: true, model, root: path.join(base, "models") });
+  }
+  const unsubscribe = state.onChange((key) => {
+    if (key === "model") loadModel();
+    if (key === "streaming" && loaded && connected && active === undefined)
+      shell.status("Ready");
+  });
   helper.stdin.on("error", () => {});
   helper.on("error", () => {
     connected = false;
@@ -73,15 +107,21 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       case "indicator-mapped":
         shell.positionSwayIndicator();
         break;
-      case "toggle-mode":
-        streaming = !streaming;
+      case "toggle-mode": {
+        const streaming = !state.snapshot.preferences.streaming;
+        try {
+          state.set("streaming", streaming);
+        } catch {
+          shell.notify("Could not save mode", Number(n), Number(x));
+          break;
+        }
         shell.notify(
           streaming ? "Mode · Streaming" : "Mode · Whole recording",
           Number(n),
           Number(x),
         );
-        if (loaded && connected) updateReadyStatus();
         break;
+      }
       case "auto-enter":
         shell.notify("Auto-Enter " + n, Number(x), Number(y));
         break;
@@ -93,22 +133,25 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
         reset();
         break;
       case "down":
+        if (!loaded || !connected || active !== undefined) break;
         active = Number(n);
         starting = active;
-        captureStreaming = streaming;
+        captureStreaming = state.snapshot.preferences.streaming;
         if (captureStreaming)
-          worker.postMessage({ init: false, id: active, action: "start" });
+          worker?.postMessage({ init: false, id: active, action: "start" });
         shell.overlay.webContents.send(
           "capture-start",
           active,
           captureStreaming,
         );
         shell.position(Number(x), Number(y));
+        shell.status("Starting microphone");
         shell.show("Starting");
         break;
       case "up":
         if (active === Number(n)) {
           starting = undefined;
+          shell.status("Transcribing");
           shell.show("Transcribing");
           shell.overlay.webContents.send("capture-stop", active);
         }
@@ -149,6 +192,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       id === starting
     ) {
       starting = undefined;
+      shell.status("Listening");
       shell.show("Listening");
     }
   });
@@ -162,7 +206,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       )
         return;
       if (captureStreaming) {
-        worker.postMessage(
+        worker?.postMessage(
           chunk
             ? { init: false, action: "chunk", id, samples }
             : { init: false, action: "finish", id },
@@ -173,15 +217,20 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
         reset("No speech");
         return;
       }
-      worker.postMessage({ init: false, id, samples });
+      worker?.postMessage({ init: false, id, samples });
     },
   );
   ipcMain.on("mic-error", (event, id: number) => {
     if (event.sender === shell.overlay.webContents && id === active)
       reset("Microphone unavailable");
   });
-  worker.on("message", (result) => {
-    if (closing) return;
+  function handleResult(result: {
+    ready?: boolean;
+    id?: number;
+    text?: string;
+    failure?: string;
+  }) {
+    if (closing || retiring) return;
     if (result.ready) {
       loaded = true;
       reset();
@@ -191,7 +240,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       fail(result.failure);
       return;
     }
-    if (result.id !== active || !connected) return;
+    if (result.id === undefined || result.id !== active || !connected) return;
     if (!result.text) {
       reset(result.failure || "No speech");
       return;
@@ -203,15 +252,12 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       Buffer.from(result.text, "utf8").toString("hex");
     attempts = 0;
     send(paste);
-  });
-  worker.on("exit", () => {
-    loaded = false;
-    fail("Speech engine stopped");
-  });
-  worker.postMessage({ init: true, model, root: path.join(base, "models") });
+  }
+  loadModel();
   app.once("before-quit", () => {
     closing = true;
+    unsubscribe();
     helper.stdin.end("quit\n");
-    worker.kill();
+    worker?.kill();
   });
 }

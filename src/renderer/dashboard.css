@@ -192,6 +192,16 @@ svg {
   color: var(--forest);
 }
 /* Content */
+.settings-message {
+  position: fixed;
+  inset: auto 24px 24px auto;
+  z-index: 6;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--forest);
+  color: var(--cream);
+}
 main {
   min-height: 0;
   /* The page title lines up with the first tab in the sidebar. */

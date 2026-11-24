@@ -1,12 +1,70 @@
 (() => {
-  interface ChirpWindow {
-    minimize(): void;
-    toggleMaximize(): void;
-    close(): void;
-    onMaximizedChange(listener: (maximized: boolean) => void): void;
-  }
-  const bridge = (window as unknown as { chirpWindow?: ChirpWindow })
+  type DashboardBridge = import("../shared/dashboard").DashboardBridge;
+  type DashboardState = import("../shared/dashboard").DashboardState;
+  type Preferences = import("../shared/dashboard").Preferences;
+  const bridge = (window as unknown as { chirpWindow?: DashboardBridge })
     .chirpWindow;
+  const fields = document.querySelectorAll<HTMLInputElement>("[data-setting]");
+  const message =
+    document.querySelector<HTMLOutputElement>("#settings-message")!;
+  let current: DashboardState | undefined;
+  let messageTimer: number | undefined;
+  function showError(error: string) {
+    clearTimeout(messageTimer);
+    message.textContent = error;
+    message.hidden = false;
+    messageTimer = window.setTimeout(() => (message.hidden = true), 4500);
+  }
+  function setText(id: string, text: string) {
+    document.getElementById(id)!.textContent = text;
+  }
+  function render(state: DashboardState) {
+    current = state;
+    const { preferences, model, modelOverride } = state;
+    setText("live-status", state.status);
+    setText("live-model", model === "qwen" ? "Qwen" : "Parakeet");
+    setText(
+      "live-mode",
+      preferences.streaming ? "Streaming" : "Whole recording",
+    );
+    setText(
+      "model-hint",
+      modelOverride
+        ? "Selected by CHIRP_ASR_MODEL."
+        : "Changes apply to the next dictation.",
+    );
+    document.querySelector<HTMLFieldSetElement>("#model-choice")!.disabled =
+      modelOverride;
+    document.querySelector<HTMLFieldSetElement>("#mode-choice")!.disabled =
+      false;
+    for (const field of fields) {
+      const key = field.dataset.setting as keyof Preferences;
+      const value = key === "model" ? model : preferences[key];
+      field.checked = field.value === String(value);
+    }
+  }
+  async function save(key: keyof Preferences, value: unknown) {
+    try {
+      await bridge?.set(key, value);
+    } catch {
+      if (current) render(current);
+      showError("Chirp could not save this setting.");
+    }
+  }
+  bridge?.onChange(render);
+  void bridge
+    ?.read()
+    .then(render, () => showError("Chirp could not load its settings."));
+  for (const field of fields) {
+    field.addEventListener("change", () => {
+      if (!field.checked) return;
+      const key = field.dataset.setting as keyof Preferences;
+      void save(
+        key,
+        key === "streaming" ? field.value === "true" : field.value,
+      );
+    });
+  }
 
   // The page's security policy blocks inline style attributes, so chart
   // heights and animation delays arrive as data attributes.
@@ -70,10 +128,7 @@
     });
   });
 
-  // Nothing in the settings is connected yet. Switches and the microphone
-  // list move for UI testing, but nothing is saved or applied. Every other
-  // interaction inside a card is swallowed.
-  const live = 'input[role="switch"]:not(:disabled)';
+  const live = '[data-setting], input[role="switch"]:not(:disabled)';
   for (const type of ["pointerdown", "mousedown", "click", "keydown"]) {
     document.querySelector("main")?.addEventListener(
       type,

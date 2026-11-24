@@ -105,6 +105,7 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         std::unique_ptr<std::string> line(reinterpret_cast<std::string*>(lp));
         if(*line=="quit") PostQuitMessage(0);
         if(*line=="arm") armed=true;
+        if(*line=="disarm") armed=false;
 #ifdef CHIRP_TEST_INPUT
         if(line->rfind("test-quit ",0)==0){
             if(reinterpret_cast<UINT_PTR>(GetForegroundWindow())!=std::stoull(line->substr(10))){

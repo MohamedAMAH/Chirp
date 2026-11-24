@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { DashboardBridge, DashboardState } from "../shared/dashboard";
 
-// The dashboard can only ask its own window to minimize, maximize or close.
-contextBridge.exposeInMainWorld("chirpWindow", {
+const dashboard: DashboardBridge = {
   minimize: () => ipcRenderer.send("dashboard-window", "minimize"),
   toggleMaximize: () => ipcRenderer.send("dashboard-window", "toggleMaximize"),
   close: () => ipcRenderer.send("dashboard-window", "close"),
@@ -10,4 +10,12 @@ contextBridge.exposeInMainWorld("chirpWindow", {
       listener(maximized),
     );
   },
-});
+  read: () => ipcRenderer.invoke("dashboard-read"),
+  onChange: (listener) => {
+    ipcRenderer.on("dashboard-change", (_event, state: DashboardState) =>
+      listener(state),
+    );
+  },
+  set: (key, value) => ipcRenderer.invoke("dashboard-set", key, value),
+};
+contextBridge.exposeInMainWorld("chirpWindow", dashboard);

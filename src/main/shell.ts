@@ -10,6 +10,7 @@ import {
 } from "electron";
 import path from "node:path";
 import { isSway, moveSwayIndicator } from "./sway";
+import { ChirpState } from "./preferences";
 
 // tray.png has @1.25x, @1.5x, @2x and @3x companions that Electron picks for
 // high-DPI displays. All of them are rendered from assets/chirp.svg.
@@ -19,6 +20,7 @@ function icon(name = "tray.png") {
   );
 }
 export class Shell {
+  readonly state = new ChirpState();
   readonly tray = new Tray(icon());
   readonly overlay = new BrowserWindow({
     width: 220,
@@ -51,6 +53,11 @@ export class Shell {
   constructor() {
     app.once("before-quit", () => (this.quitting = true));
     this.tray.on("click", () => this.showDashboard());
+    this.state.onChange(() => {
+      const window = this.dashboard;
+      if (window && !window.isDestroyed())
+        window.webContents.send("dashboard-change", this.state.snapshot);
+    });
     ipcMain.on("dashboard-window", (event, action: string) => {
       const window = this.dashboard;
       if (
@@ -83,10 +90,19 @@ export class Shell {
     );
   }
   status(message: string) {
-    this.tray.setToolTip("Chirp · " + message);
+    this.state.setStatus(message);
+    const { status, model, preferences } = this.state.snapshot;
+    const summary =
+      status === "Ready"
+        ? `Ready · ${model} · ${preferences.streaming ? "Streaming" : "Whole recording"}`
+        : status;
+    this.tray.setToolTip("Chirp · " + summary);
     this.tray.setContextMenu(
       Menu.buildFromTemplate([
         { label: "Show", click: () => this.showDashboard() },
+        { type: "separator" },
+        { label: summary, enabled: false },
+        { type: "separator" },
         { label: "Quit", click: () => app.quit() },
       ]),
     );
@@ -125,6 +141,12 @@ export class Shell {
       },
     });
     this.dashboard = window;
+    window.webContents.ipc.handle("dashboard-read", () => this.state.snapshot);
+    window.webContents.ipc.handle("dashboard-set", (_event, key, value) => {
+      if (key === "model" && this.state.snapshot.modelOverride)
+        throw new Error("The environment variable selects the current model.");
+      this.state.set(key, value);
+    });
     window.setMenu(null);
     const reportMaximized = () =>
       window.webContents.send("dashboard-maximized", window.isMaximized());

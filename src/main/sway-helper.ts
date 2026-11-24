@@ -183,6 +183,7 @@ commands.on("line", (line) => {
   const [command, id, hex] = line.split(" ");
   if (command === "quit") close();
   else if (command === "arm") armed = true;
+  else if (command === "disarm") armed = false;
   else if (command === "paste") enqueue(() => paste(Number(id), hex));
 });
 commands.on("close", () => close());
