@@ -3,6 +3,7 @@ interface Recording {
   id: number;
   chunks: Float32Array[];
   streaming: boolean;
+  sounds: boolean;
   stream?: MediaStream;
   source?: MediaStreamAudioSourceNode;
   input?: AudioWorkletNode;
@@ -155,6 +156,26 @@ function prepareInput() {
   }
   return standby;
 }
+async function playCue(frequency: number) {
+  try {
+    const ctx = await prepareAudio();
+    if (ctx.state === "suspended") await ctx.resume();
+    const tone = ctx.createOscillator();
+    const volume = ctx.createGain();
+    const start = ctx.currentTime;
+    tone.frequency.value = frequency;
+    volume.gain.setValueAtTime(0, start);
+    volume.gain.linearRampToValueAtTime(0.055, start + 0.005);
+    volume.gain.exponentialRampToValueAtTime(0.001, start + 0.045);
+    tone.connect(volume).connect(ctx.destination);
+    tone.onended = () => volume.disconnect();
+    tone.start(start);
+    tone.stop(start + 0.05);
+  } catch {
+    // Capturing dictation does not depend on audio output.
+  }
+}
+
 function updateMeter(samples: Float32Array) {
   // Each bar shows a successive slice of the most recent microphone buffer.
   const width = samples.length / meterBars.length;
@@ -194,11 +215,18 @@ function finish(r: Recording) {
 }
 ipcRenderer.on(
   "capture-start",
-  async (_event, id: number, streaming = false, microphone = "default") => {
+  async (
+    _event,
+    id: number,
+    streaming = false,
+    microphone = "default",
+    sounds = false,
+  ) => {
     stopPreview();
     if (recording) close(recording);
-    const r: Recording = { id, chunks: [], streaming };
+    const r: Recording = { id, chunks: [], streaming, sounds };
     recording = r;
+    if (sounds) void playCue(640);
     try {
       const device = openMicrophone(microphone, true).then((stream) => {
         if (recording !== r) {
@@ -255,6 +283,7 @@ ipcRenderer.on("capture-stop", (_event, id: number) => {
   }
   r.input.port.postMessage("end");
   r.stream?.getTracks().forEach((track) => track.stop());
+  if (r.sounds) void playCue(480);
   r.closing = setTimeout(() => finish(r), 300);
 });
 ipcRenderer.on("capture-cancel", () => {

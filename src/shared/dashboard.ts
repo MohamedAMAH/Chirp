@@ -6,6 +6,7 @@ export interface Preferences {
   autoEnterDelay: number;
   clipboardHistory: boolean;
   microphone: string;
+  sounds: boolean;
 }
 
 export interface Microphone {

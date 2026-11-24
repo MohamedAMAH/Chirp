@@ -172,6 +172,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
           active,
           captureStreaming,
           state.snapshot.preferences.microphone,
+          state.snapshot.preferences.sounds,
         );
         shell.position(Number(x), Number(y));
         shell.status("Starting microphone");

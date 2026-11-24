@@ -16,6 +16,7 @@ const validators: {
   delivery: (v): v is Preferences["delivery"] => v === "paste" || v === "copy",
   autoEnter: (v): v is boolean => typeof v === "boolean",
   clipboardHistory: (v): v is boolean => typeof v === "boolean",
+  sounds: (v): v is boolean => typeof v === "boolean",
   microphone: (v): v is string =>
     typeof v === "string" && v.length > 0 && v.length <= 256,
   autoEnterDelay: (v): v is number =>
@@ -44,6 +45,7 @@ export class ChirpState {
     autoEnterDelay: 600,
     clipboardHistory: false,
     microphone: "default",
+    sounds: true,
   };
   private status = "Loading";
   private microphones: Microphone[] = [];
