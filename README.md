@@ -16,14 +16,14 @@
 
 </div>
 
-Chirp is a small tray app for dictation. Hold **Right Alt**, speak, and release. Chirp transcribes on your CPU and tries to paste the text into the window where you started. Chirp keeps no dictation history.
+Chirp is a small tray app for dictation. Hold **Right Alt**, speak, and release. To record hands-free, tap **Right Alt** to start and tap it again to stop. Chirp transcribes on your CPU and tries to paste the text into the window where you started.
 
 - **Offline Recognition**: Both speech models run locally on the CPU through sherpa-onnx. [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)
 - **Global Push-to-Talk**: Start a dictation from another app. Automatic paste depends on the target accepting its paste shortcut.
 - **Two Speech Models**: Qwen3-ASR 0.6B for 30 languages (default) and Parakeet TDT 0.6B v3 for faster results in 25 European languages.
-- **Clipboard Fallback**: If you switch windows, Chirp copies the text for manual paste. After a successful paste on Windows, Chirp restores your previous clipboard when possible.
+- **Clipboard Fallback**: If you switch windows, Chirp copies the text for manual paste. With clipboard history off, Windows restores your previous clipboard after a successful paste when possible.
 - **Streaming or Whole Recording**: Process phrases while you speak, or process the audio on release. Switch with `Ctrl+N`.
-- **Auto-Enter**: Press `Ctrl+B` on Windows or X11 to toggle pressing Enter after the target reads the pasted text.
+- **Auto-Enter**: Turn it on in **Delivery** or press `Ctrl+B` on Windows or X11. Chirp waits for the target to read the pasted text before pressing Enter.
 
 Check out the [Shortcuts](#shortcuts) and [Speech Models](#speech-models) for a quick reference.
 
@@ -68,12 +68,20 @@ Click a text field, hold **Right Alt**, speak, and release. Chirp uses the defau
 | Shortcut | Action |
 | --- | --- |
 | Hold **Right Alt** | Record. Release to transcribe and paste. |
-| Right Alt + another key | Cancel the current recording on Windows or X11. |
-| `Ctrl+B` | Toggle **Auto-Enter**. It starts off on every launch and is unavailable on Sway. |
+| Tap **Right Alt** | Start hands-free recording. Tap again to transcribe and paste. |
+| `Esc` | Discard the current recording on Windows or X11. |
+| Dictation key + another key | Pass the key combination through and discard the recording on Windows or X11. |
+| `Ctrl+B` | Toggle **Auto-Enter** on Windows and X11. It is off by default. |
 | `Ctrl+N` | Switch between **Streaming** and **Whole recording**. |
 | `Ctrl+Q` | Quit Chirp. The tray menu also has **Quit**. |
 
 Choose **Show** in the tray menu, or click the tray icon, to open the Chirp window.
+
+- **Overview** shows the current speech model, mode, microphone, shortcuts, and local activity. Weekly totals reset on Monday, and lifetime totals are cumulative. Estimated time saved assumes typing at 40 words per minute.
+- **Dictation** selects a model, mode, and microphone. **Test mic** opens the microphone for up to 10 seconds.
+- **Shortcuts** sets the dictation and cancel keys where supported. A hands-free recording ends after five minutes or three seconds of silence by default. You can change both limits and turn off silence detection.
+- **Delivery** chooses automatic paste or clipboard-only output, sets the Auto-Enter delay, and controls Windows clipboard history.
+- **Preferences** controls sound cues and sign-in startup in the installed Windows app.
 
 ### Indicator
 
@@ -89,12 +97,13 @@ A small indicator at the top center of the screen shows what Chirp is doing.
 ### Paste behavior
 
 - If you switch windows before Chirp sends the paste shortcut, including switching away and back, Chirp leaves the transcript on the clipboard.
-- With Auto-Enter on, Chirp waits 600 ms after the original window reads the pasted text, then presses Enter. It skips Enter if you changed windows or pressed a key in between.
+- With Auto-Enter on, Chirp waits for the original window to read the pasted text, then waits the delay set in **Delivery** before pressing Enter. The default is 600 ms. It skips Enter if you changed windows or pressed a key in between.
+- **Copy only** leaves the transcript on the clipboard and disables automatic paste and Auto-Enter.
 - Chirp uses `Ctrl+Shift+V` for Windows Terminal and recognized Linux terminals. Paste manually from the clipboard if the target does not accept the shortcut Chirp sends.
 
 ## Speech Models
 
-Chirp loads one model at startup, chosen with the `CHIRP_ASR_MODEL` environment variable.
+Choose a model in the dashboard under **Dictation**. Chirp saves the choice and loads that model at startup. `CHIRP_ASR_MODEL` overrides the saved model when set.
 
 | Setting | Model | Languages | Publisher | License |
 | --- | --- | --- | --- | --- |
@@ -102,7 +111,7 @@ Chirp loads one model at startup, chosen with the `CHIRP_ASR_MODEL` environment 
 | `parakeet` | Parakeet TDT 0.6B v3 | 25 European languages | NVIDIA | CC BY 4.0 |
 | `parakeet-streaming` | Parakeet TDT 0.6B v3 | 25 European languages | NVIDIA | CC BY 4.0 |
 
-`parakeet-streaming` loads Parakeet and starts Chirp in streaming mode. That mode transcribes phrases while you speak and uses pauses or quiet points to split the audio. With either model, `Ctrl+N` toggles streaming for the next recording. Chirp tries to paste once, when you release Right Alt.
+`parakeet-streaming` selects Parakeet and defaults to streaming if you have no saved mode. Streaming transcribes phrases while you speak and uses pauses or quiet points to split the audio. With either model, `Ctrl+N` toggles streaming for the next recording. Chirp tries to paste once when the recording ends.
 
 ### Switch models
 
@@ -182,9 +191,9 @@ npm run dist:linux   # produce a portable tar.gz in dist/
 ## How It Works
 
 1. **At startup**, Electron prepares its audio processing and loads the selected speech model in a separate worker. The microphone stays closed until you press **Right Alt**.
-2. **While you hold Right Alt**, a platform-specific helper remembers the focused window and tells Electron to open the microphone. The indicator shows **Listening** when audio starts arriving. In streaming mode, the worker transcribes phrases as you speak.
-3. **When you release Right Alt**, Chirp closes the microphone and completes the transcript. In whole-recording mode, the worker transcribes the full recording at this point.
-4. **When the transcript is ready**, the helper copies it to the clipboard and checks whether focus stayed in the original window before sending a paste shortcut. If you switched windows, paste it manually wherever you want.
+2. **When you start dictating**, a platform-specific helper remembers the focused window and tells Electron to open the microphone. The indicator shows **Listening** when audio starts arriving. In streaming mode, the worker transcribes phrases as you speak.
+3. **When the recording ends**, Chirp closes the microphone and completes the transcript. In whole-recording mode, the worker transcribes the full recording at this point.
+4. **When the transcript is ready**, the helper copies it to the clipboard. In paste mode, it checks whether focus stayed in the original window before sending the paste shortcut. After switching windows, you can paste the transcript manually.
 
 ## Performance
 
@@ -222,7 +231,8 @@ Qwen matched the German reference and produced Arabic text, while Parakeet wrote
 
 - Windows installers are unsigned, so SmartScreen may warn.
 - Only Sway is supported on Wayland. Other compositors are rejected at startup.
-- Auto-Enter is unavailable on Sway.
+- Sway uses the compositor's Right Alt binding. Auto-Enter and a dedicated cancel key are unavailable there.
+- X11 supports modifier keys for the dictation shortcut. The cancel key must be available for Chirp to grab during recording.
 - Chirp pastes plain text without timestamps. Use Qwen for Arabic dictation.
 
 ## Contribution and Support
@@ -239,9 +249,10 @@ The interactive Windows checks (capture, paste, clipboard, desktop targets, inst
 
 ## Privacy
 
-- Chirp processes recordings and transcripts in memory without saving a history. Transcripts can remain on the system clipboard after dictation.
+- Chirp processes recordings and transcripts in memory. Optional recent transcripts are off by default. Turning the setting off or quitting Chirp clears the in-memory list.
+- Chirp saves aggregate activity counts and durations locally. The activity file contains no recordings or transcript text.
 - Speech recognition runs on the device without uploading audio or transcripts.
-- On Windows, Chirp marks copied transcripts for exclusion from clipboard history.
+- Dictated text can remain on the system clipboard. On Windows, Chirp excludes it from clipboard history by default. Enabling clipboard history leaves the last transcript on the clipboard and allows it in **Win+V**.
 
 ## License
 
