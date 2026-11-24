@@ -1,7 +1,11 @@
 import { app } from "electron";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { DashboardState, Preferences } from "../shared/dashboard";
+import type {
+  DashboardState,
+  Microphone,
+  Preferences,
+} from "../shared/dashboard";
 import { isSway } from "./sway";
 
 const validators: {
@@ -12,6 +16,8 @@ const validators: {
   delivery: (v): v is Preferences["delivery"] => v === "paste" || v === "copy",
   autoEnter: (v): v is boolean => typeof v === "boolean",
   clipboardHistory: (v): v is boolean => typeof v === "boolean",
+  microphone: (v): v is string =>
+    typeof v === "string" && v.length > 0 && v.length <= 256,
   autoEnterDelay: (v): v is number =>
     typeof v === "number" && v >= 300 && v <= 2000 && v % 50 === 0,
 };
@@ -37,8 +43,10 @@ export class ChirpState {
     autoEnter: false,
     autoEnterDelay: 600,
     clipboardHistory: false,
+    microphone: "default",
   };
   private status = "Loading";
+  private microphones: Microphone[] = [];
 
   constructor() {
     try {
@@ -68,6 +76,7 @@ export class ChirpState {
       status: this.status,
       canAutoEnter: !isSway(),
       canUseClipboardHistory: process.platform === "win32",
+      microphones: this.microphones,
     };
   }
 
@@ -84,6 +93,12 @@ export class ChirpState {
   setStatus(status: string) {
     if (this.status === status) return;
     this.status = status;
+    this.listeners.forEach((listener) => listener());
+  }
+
+  setMicrophones(devices: Microphone[]) {
+    if (JSON.stringify(devices) === JSON.stringify(this.microphones)) return;
+    this.microphones = devices;
     this.listeners.forEach((listener) => listener());
   }
 

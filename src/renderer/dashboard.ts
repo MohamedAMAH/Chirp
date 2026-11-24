@@ -8,6 +8,7 @@
   const message =
     document.querySelector<HTMLOutputElement>("#settings-message")!;
   let current: DashboardState | undefined;
+  let renderMicrophones: ((state: DashboardState) => void) | undefined;
   let messageTimer: number | undefined;
   function showError(error: string) {
     clearTimeout(messageTimer);
@@ -23,6 +24,7 @@
     const { preferences, model, modelOverride } = state;
     setText("live-status", state.status);
     setText("live-model", model === "qwen" ? "Qwen" : "Parakeet");
+    renderMicrophones?.(state);
     setText(
       "live-mode",
       preferences.streaming ? "Streaming" : "Whole recording",
@@ -104,6 +106,34 @@
   delay.addEventListener("input", () =>
     setText("delay-value", `${delay.value} ms`),
   );
+  const testMic = document.querySelector<HTMLButtonElement>("#test-mic")!;
+  const micBars = Array.from(document.querySelectorAll(".meter i"));
+  let testing = false;
+  function renderLevel(level: number, active: boolean) {
+    testing = active;
+    testMic.setAttribute("aria-pressed", String(active));
+    testMic.querySelector("kbd")!.textContent = active
+      ? "Stop test"
+      : "Test mic";
+    micBars.forEach((bar, index) =>
+      bar.classList.toggle("on", index < Math.round(level * micBars.length)),
+    );
+  }
+  async function testMicrophone(active: boolean) {
+    renderLevel(0, active);
+    try {
+      await bridge?.testMicrophone(active);
+    } catch {
+      renderLevel(0, false);
+      showError("Chirp could not test the microphone.");
+    }
+  }
+  testMic.addEventListener("click", () => void testMicrophone(!testing));
+  bridge?.onMicrophoneLevel(({ level, testing, error }) => {
+    renderLevel(level, testing);
+    if (error) showError(error);
+  });
+  window.addEventListener("blur", () => renderLevel(0, false));
 
   // The page's security policy blocks inline style attributes, so chart
   // heights and animation delays arrive as data attributes.
@@ -136,6 +166,7 @@
     document.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
   );
   function select(tab: HTMLButtonElement, focus = false) {
+    if (testing && tab.id !== "tab-dictation") void testMicrophone(false);
     if (
       tab.id === "tab-overview" &&
       tab.getAttribute("aria-selected") !== "true"
@@ -167,7 +198,7 @@
     });
   });
 
-  const live = '[data-setting], input[role="switch"]:not(:disabled)';
+  const live = '[data-setting], input[role="switch"]:not(:disabled), #test-mic';
   for (const type of ["pointerdown", "mousedown", "click", "keydown"]) {
     document.querySelector("main")?.addEventListener(
       type,
@@ -177,7 +208,7 @@
         if (event instanceof KeyboardEvent && event.key === "Tab") return;
         if (target.closest(".dropdown")) return;
         const control = target.closest("label")?.control ?? target;
-        if (control.matches(live)) return;
+        if (control.matches(live) || target.closest("#test-mic")) return;
         event.preventDefault();
         event.stopPropagation();
       },
@@ -190,11 +221,11 @@
     const button = dropdown.querySelector<HTMLButtonElement>(".dd-button")!;
     const list = dropdown.querySelector<HTMLElement>(".dd-list")!;
     const label = dropdown.querySelector<HTMLElement>(".dd-value")!;
-    const options = Array.from(
-      list.querySelectorAll<HTMLElement>('[role="option"]'),
-    );
+    let options: HTMLElement[] = [];
+    let deviceList = "";
     let active = 0;
     const setActive = (index: number) => {
+      if (!options.length) return;
       active = (index + options.length) % options.length;
       options.forEach((o, n) => o.classList.toggle("active", n === active));
       list.setAttribute("aria-activedescendant", options[active].id);
@@ -215,12 +246,43 @@
       );
     };
     const choose = (index: number) => {
-      options.forEach((o, n) =>
-        o.setAttribute("aria-selected", String(n === index)),
-      );
-      label.textContent = options[index].textContent?.trim() ?? "";
+      if (options[index])
+        void save("microphone", options[index].dataset.device);
       close();
       button.focus();
+    };
+    renderMicrophones = ({ microphones, preferences }) => {
+      const devices = [
+        { id: "default", label: "System default" },
+        ...microphones,
+      ];
+      const signature = JSON.stringify(devices);
+      if (deviceList !== signature) {
+        close();
+        deviceList = signature;
+        options = devices.map((device, index) => {
+          const option = document.createElement("li");
+          option.id = `microphone-option-${index}`;
+          option.setAttribute("role", "option");
+          option.dataset.device = device.id;
+          option.textContent = device.label;
+          return option;
+        });
+        list.replaceChildren(...options);
+      }
+      const selected = devices.find(
+        (device) => device.id === preferences.microphone,
+      );
+      options.forEach((option) =>
+        option.setAttribute(
+          "aria-selected",
+          String(option.dataset.device === (selected?.id ?? "default")),
+        ),
+      );
+      label.textContent =
+        selected?.label ?? "System default (saved mic unavailable)";
+      setText("live-microphone", label.textContent);
+      button.disabled = false;
     };
     button.addEventListener("click", () => (list.hidden ? open() : close()));
     button.addEventListener("keydown", (event) => {
@@ -246,9 +308,17 @@
       if (event.key !== "Tab") event.preventDefault();
       move();
     });
-    options.forEach((option, index) => {
-      option.addEventListener("click", () => choose(index));
-      option.addEventListener("mousemove", () => setActive(index));
+    list.addEventListener("click", (event) => {
+      const option = (event.target as Element).closest<HTMLElement>(
+        '[role="option"]',
+      );
+      if (option) choose(options.indexOf(option));
+    });
+    list.addEventListener("mousemove", (event) => {
+      const option = (event.target as Element).closest<HTMLElement>(
+        '[role="option"]',
+      );
+      if (option) setActive(options.indexOf(option));
     });
     document.addEventListener(
       "pointerdown",

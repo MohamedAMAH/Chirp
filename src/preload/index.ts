@@ -14,6 +14,117 @@ let standby:
   | Promise<{ ctx: AudioContext; input: AudioWorkletNode }>
   | undefined;
 let meterBars: NodeListOf<HTMLElement>;
+let preview:
+  | {
+      stream?: MediaStream;
+      timer?: ReturnType<typeof setInterval>;
+      source?: MediaStreamAudioSourceNode;
+    }
+  | undefined;
+let deviceRequest = 0;
+
+async function publishDevices() {
+  const request = ++deviceRequest;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    if (request !== deviceRequest) return;
+    const microphones = devices
+      .filter(
+        ({ kind, deviceId }) =>
+          kind === "audioinput" && deviceId && deviceId !== "default",
+      )
+      .map(({ deviceId, label }, index) => ({
+        id: deviceId,
+        label: label || `Microphone ${index + 1}`,
+      }));
+    ipcRenderer.send("mic-devices", microphones);
+  } catch {
+    if (request === deviceRequest) ipcRenderer.send("mic-devices", []);
+  }
+}
+
+async function openMicrophone(microphone: string, fallback: boolean) {
+  const audio: MediaTrackConstraints = { channelCount: 1 };
+  if (microphone !== "default") audio.deviceId = { exact: microphone };
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio, video: false });
+  } catch (error) {
+    if (
+      !fallback ||
+      !audio.deviceId ||
+      !(error instanceof DOMException) ||
+      !["NotFoundError", "OverconstrainedError"].includes(error.name)
+    )
+      throw error;
+    return navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1 },
+      video: false,
+    });
+  }
+}
+
+function sendLevel(level: number, testing: boolean, error?: string) {
+  ipcRenderer.send("mic-level", { level, testing, error });
+}
+
+function stopPreview() {
+  if (!preview) return;
+  clearInterval(preview.timer);
+  preview.source?.disconnect();
+  preview.stream?.getTracks().forEach((track) => track.stop());
+  preview = undefined;
+  sendLevel(0, false);
+}
+
+ipcRenderer.on("mic-refresh", () => void publishDevices());
+ipcRenderer.on(
+  "mic-test",
+  async (_event, enabled: boolean, device = "default") => {
+    stopPreview();
+    if (!enabled) return;
+    if (recording) {
+      sendLevel(0, false, "Finish dictating before testing the microphone.");
+      return;
+    }
+    const check: NonNullable<typeof preview> = {};
+    preview = check;
+    sendLevel(0, true);
+    try {
+      const stream = await openMicrophone(device, false);
+      if (preview !== check) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      check.stream = stream;
+      const context = await prepareAudio();
+      if (context.state === "suspended") await context.resume();
+      if (preview !== check) return;
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      check.source = context.createMediaStreamSource(stream);
+      check.source.connect(analyser);
+      const buffer = new Float32Array(analyser.fftSize);
+      check.timer = setInterval(() => {
+        analyser.getFloatTimeDomainData(buffer);
+        sendLevel(levelOf(buffer), true);
+      }, 80);
+      setTimeout(() => {
+        if (preview === check) stopPreview();
+      }, 10000);
+      void publishDevices();
+    } catch {
+      if (preview !== check) return;
+      stopPreview();
+      sendLevel(0, false, "This microphone could not be opened.");
+    }
+  },
+);
+
+function levelOf(samples: Float32Array) {
+  let energy = 0;
+  for (const sample of samples) energy += sample * sample;
+  return Math.min(1, Math.sqrt(energy / Math.max(1, samples.length)) * 6);
+}
 function prepareAudio() {
   if (!audioContext) {
     const context = new AudioContext({
@@ -67,6 +178,7 @@ function close(r: Recording) {
   r.input?.disconnect();
   r.input?.port.close();
   if (recording === r) recording = undefined;
+  sendLevel(0, false);
   prepareInput();
 }
 function finish(r: Recording) {
@@ -82,24 +194,21 @@ function finish(r: Recording) {
 }
 ipcRenderer.on(
   "capture-start",
-  async (_event, id: number, streaming = false) => {
+  async (_event, id: number, streaming = false, microphone = "default") => {
+    stopPreview();
     if (recording) close(recording);
     const r: Recording = { id, chunks: [], streaming };
     recording = r;
     try {
-      const device = navigator.mediaDevices
-        .getUserMedia({
-          audio: { channelCount: 1 },
-          video: false,
-        })
-        .then((stream) => {
-          if (recording !== r) {
-            stream.getTracks().forEach((track) => track.stop());
-            return;
-          }
-          r.stream = stream;
-          return stream;
-        });
+      const device = openMicrophone(microphone, true).then((stream) => {
+        if (recording !== r) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        r.stream = stream;
+        void publishDevices();
+        return stream;
+      });
       const prepared = prepareInput();
       standby = undefined;
       const graph = prepared.then(async ({ ctx, input }) => {
@@ -124,6 +233,7 @@ ipcRenderer.on(
           if (r.streaming) ipcRenderer.send("audio", r.id, data, true);
           else r.chunks.push(data);
           updateMeter(data);
+          sendLevel(levelOf(data), false);
         }
       };
       r.source = ctx.createMediaStreamSource(stream);
@@ -154,6 +264,11 @@ window.addEventListener("DOMContentLoaded", () => {
   // Prepare the audio graph without requesting a microphone. A failed warmup
   // can be retried on the next press.
   prepareInput();
+  void publishDevices();
+  navigator.mediaDevices?.addEventListener(
+    "devicechange",
+    () => void publishDevices(),
+  );
   const indicator = document.querySelector("main")!;
   const output = document.querySelector("output")!;
   meterBars = document.querySelectorAll(".wave i");

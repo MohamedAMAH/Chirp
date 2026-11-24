@@ -11,6 +11,7 @@ import {
 import path from "node:path";
 import { isSway, moveSwayIndicator } from "./sway";
 import { ChirpState } from "./preferences";
+import type { Microphone, MicrophoneLevel } from "../shared/dashboard";
 
 // tray.png has @1.25x, @1.5x, @2x and @3x companions that Electron picks for
 // high-DPI displays. All of them are rendered from assets/chirp.svg.
@@ -72,6 +73,20 @@ export class Shell {
       else if (action === "close") window.close();
     });
     this.overlay.setIgnoreMouseEvents(true);
+    this.overlay.webContents.ipc.on(
+      "mic-devices",
+      (_event, devices: Microphone[]) => {
+        this.state.setMicrophones(devices);
+      },
+    );
+    this.overlay.webContents.ipc.on(
+      "mic-level",
+      (_event, level: MicrophoneLevel) => {
+        const window = this.dashboard;
+        if (window && !window.isDestroyed() && window.isVisible())
+          window.webContents.send("dashboard-mic-level", level);
+      },
+    );
     this.overlay.webContents.ipc.on("notice-finished", (_event, id: number) => {
       if (id !== this.activeNotice) return;
       this.activeNotice = undefined;
@@ -141,17 +156,44 @@ export class Shell {
       },
     });
     this.dashboard = window;
-    window.webContents.ipc.handle("dashboard-read", () => this.state.snapshot);
+    window.webContents.ipc.handle("dashboard-read", () => {
+      this.overlay.webContents.send("mic-refresh");
+      return this.state.snapshot;
+    });
     window.webContents.ipc.handle("dashboard-set", (_event, key, value) => {
       if (key === "model" && this.state.snapshot.modelOverride)
         throw new Error("The environment variable selects the current model.");
+      if (key === "microphone") {
+        if (
+          value !== "default" &&
+          !this.state.snapshot.microphones.some((device) => device.id === value)
+        )
+          throw new Error("The microphone is no longer available.");
+        this.overlay.webContents.send("mic-test", false);
+      }
       this.state.set(key, value);
+    });
+    window.webContents.ipc.handle("dashboard-mic-test", (_event, start) => {
+      if (
+        typeof start !== "boolean" ||
+        (start && (!window.isVisible() || !window.isFocused()))
+      )
+        throw new Error("Open the dashboard to test your microphone.");
+      this.overlay.webContents.send(
+        "mic-test",
+        start,
+        this.state.snapshot.preferences.microphone,
+      );
     });
     window.setMenu(null);
     const reportMaximized = () =>
       window.webContents.send("dashboard-maximized", window.isMaximized());
     window.on("maximize", reportMaximized);
     window.on("unmaximize", reportMaximized);
+    const stopMicTest = () => this.overlay.webContents.send("mic-test", false);
+    window.on("blur", stopMicTest);
+    window.on("hide", stopMicTest);
+    window.on("minimize", stopMicTest);
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
     window.once("ready-to-show", () => window.show());

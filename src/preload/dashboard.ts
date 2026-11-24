@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { DashboardBridge, DashboardState } from "../shared/dashboard";
+import type {
+  DashboardBridge,
+  DashboardState,
+  MicrophoneLevel,
+} from "../shared/dashboard";
 
 const dashboard: DashboardBridge = {
   minimize: () => ipcRenderer.send("dashboard-window", "minimize"),
@@ -17,5 +21,12 @@ const dashboard: DashboardBridge = {
     );
   },
   set: (key, value) => ipcRenderer.invoke("dashboard-set", key, value),
+  testMicrophone: (enabled) =>
+    ipcRenderer.invoke("dashboard-mic-test", enabled),
+  onMicrophoneLevel: (listener) => {
+    ipcRenderer.on("dashboard-mic-level", (_event, level: MicrophoneLevel) =>
+      listener(level),
+    );
+  },
 };
 contextBridge.exposeInMainWorld("chirpWindow", dashboard);

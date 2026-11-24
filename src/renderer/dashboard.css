@@ -468,7 +468,7 @@ input[role="switch"]:disabled::after {
   border-radius: 3px;
   background: var(--line);
 }
-.meter i:nth-child(-n + 6) {
+.meter i.on {
   background: var(--moss);
 }
 .meter i:nth-child(3n + 1) {

@@ -5,6 +5,18 @@ export interface Preferences {
   autoEnter: boolean;
   autoEnterDelay: number;
   clipboardHistory: boolean;
+  microphone: string;
+}
+
+export interface Microphone {
+  id: string;
+  label: string;
+}
+
+export interface MicrophoneLevel {
+  level: number;
+  testing: boolean;
+  error?: string;
 }
 
 export interface DashboardState {
@@ -14,6 +26,7 @@ export interface DashboardState {
   status: string;
   canAutoEnter: boolean;
   canUseClipboardHistory: boolean;
+  microphones: Microphone[];
 }
 
 export interface DashboardBridge {
@@ -24,4 +37,6 @@ export interface DashboardBridge {
   read(): Promise<DashboardState>;
   onChange(listener: (state: DashboardState) => void): void;
   set(key: keyof Preferences, value: unknown): Promise<void>;
+  testMicrophone(enabled: boolean): Promise<void>;
+  onMicrophoneLevel(listener: (level: MicrophoneLevel) => void): void;
 }

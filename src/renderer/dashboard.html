@@ -277,7 +277,7 @@
                 </div>
                 <div>
                   <dt>Microphone</dt>
-                  <dd>System default</dd>
+                  <dd id="live-microphone">System default</dd>
                 </div>
                 <div>
                   <dt>Auto-Enter</dt>
@@ -369,6 +369,7 @@
                   aria-haspopup="listbox"
                   aria-expanded="false"
                   aria-controls="microphone-list"
+                  disabled
                 >
                   <span class="dd-value">System default</span>
                   <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -382,60 +383,29 @@
                   aria-label="Input device"
                   tabindex="-1"
                   hidden
-                >
-                  <li
-                    role="option"
-                    id="microphone-option-0"
-                    aria-selected="true"
-                  >
-                    System default
-                  </li>
-                  <li
-                    role="option"
-                    id="microphone-option-1"
-                    aria-selected="false"
-                  >
-                    Microphone Array (Realtek Audio)
-                  </li>
-                  <li
-                    role="option"
-                    id="microphone-option-2"
-                    aria-selected="false"
-                  >
-                    Headset Microphone (USB Audio)
-                  </li>
-                  <li
-                    role="option"
-                    id="microphone-option-3"
-                    aria-selected="false"
-                  >
-                    Studio Condenser Mic (USB)
-                  </li>
-                  <li
-                    role="option"
-                    id="microphone-option-4"
-                    aria-selected="false"
-                  >
-                    Webcam Microphone
-                  </li>
-                  <li
-                    role="option"
-                    id="microphone-option-5"
-                    aria-selected="false"
-                  >
-                    Line In (Audio Interface)
-                  </li>
-                </ul>
+                ></ul>
               </div>
             </div>
             <div class="row">
               <div class="text">
                 <span class="name">Input level</span>
-                <span class="hint">Speak to check the microphone works.</span>
+                <span class="hint"
+                  >The test closes the microphone after 10 seconds.</span
+                >
               </div>
-              <div class="meter" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
-                ><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <div class="inline">
+                <div class="meter" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <button
+                  id="test-mic"
+                  class="key"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  <kbd>Test mic</kbd>
+                </button>
               </div>
             </div>
           </div>
