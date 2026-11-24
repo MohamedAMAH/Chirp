@@ -28,6 +28,7 @@ export interface DashboardState {
   canAutoEnter: boolean;
   canUseClipboardHistory: boolean;
   microphones: Microphone[];
+  startup: { enabled: boolean; available: boolean };
 }
 
 export interface DashboardBridge {
@@ -40,4 +41,5 @@ export interface DashboardBridge {
   set(key: keyof Preferences, value: unknown): Promise<void>;
   testMicrophone(enabled: boolean): Promise<void>;
   onMicrophoneLevel(listener: (level: MicrophoneLevel) => void): void;
+  setStartAtSignIn(enabled: boolean): Promise<void>;
 }

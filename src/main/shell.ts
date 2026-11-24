@@ -186,10 +186,14 @@ export class Shell {
       );
     });
     window.setMenu(null);
+    window.webContents.ipc.handle("dashboard-startup", (_event, enabled) =>
+      this.state.setStartAtSignIn(enabled),
+    );
     const reportMaximized = () =>
       window.webContents.send("dashboard-maximized", window.isMaximized());
     window.on("maximize", reportMaximized);
     window.on("unmaximize", reportMaximized);
+    window.on("focus", () => this.state.refreshStartup());
     const stopMicTest = () => this.overlay.webContents.send("mic-test", false);
     window.on("blur", stopMicTest);
     window.on("hide", stopMicTest);

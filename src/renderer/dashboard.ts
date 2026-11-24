@@ -5,6 +5,7 @@
   const bridge = (window as unknown as { chirpWindow?: DashboardBridge })
     .chirpWindow;
   const fields = document.querySelectorAll<HTMLInputElement>("[data-setting]");
+  const signIn = document.querySelector<HTMLInputElement>("#signin")!;
   const message =
     document.querySelector<HTMLOutputElement>("#settings-message")!;
   let current: DashboardState | undefined;
@@ -22,6 +23,14 @@
   function render(state: DashboardState) {
     current = state;
     const { preferences, model, modelOverride } = state;
+    signIn.checked = state.startup.enabled;
+    signIn.disabled = !state.startup.available;
+    setText(
+      "signin-hint",
+      state.startup.available
+        ? "Open Chirp in the tray when you sign in."
+        : "Available in the installed Windows app.",
+    );
     setText("live-status", state.status);
     setText("live-model", model === "qwen" ? "Qwen" : "Parakeet");
     renderMicrophones?.(state);
@@ -84,6 +93,14 @@
     }
   }
   bridge?.onChange(render);
+  signIn.addEventListener("change", async () => {
+    try {
+      await bridge?.setStartAtSignIn(signIn.checked);
+    } catch {
+      if (current) render(current);
+      showError("Chirp could not change the Windows startup setting.");
+    }
+  });
   void bridge
     ?.read()
     .then(render, () => showError("Chirp could not load its settings."));

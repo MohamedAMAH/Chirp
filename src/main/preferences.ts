@@ -49,8 +49,10 @@ export class ChirpState {
   };
   private status = "Loading";
   private microphones: Microphone[] = [];
+  private startup = { enabled: false, available: false };
 
   constructor() {
+    this.refreshStartup();
     try {
       const saved: unknown = JSON.parse(readFileSync(this.file, "utf8"));
       if (!saved || typeof saved !== "object") return;
@@ -79,6 +81,7 @@ export class ChirpState {
       canAutoEnter: !isSway(),
       canUseClipboardHistory: process.platform === "win32",
       microphones: this.microphones,
+      startup: this.startup,
     };
   }
 
@@ -102,6 +105,43 @@ export class ChirpState {
     if (JSON.stringify(devices) === JSON.stringify(this.microphones)) return;
     this.microphones = devices;
     this.listeners.forEach((listener) => listener());
+  }
+
+  refreshStartup() {
+    if (!app.isPackaged || process.platform !== "win32") return;
+    const entry = app
+      .getLoginItemSettings()
+      .launchItems.find(
+        (item) => item.name.toLowerCase() === "chirp" && item.scope === "user",
+      );
+    const available =
+      !entry ||
+      path.resolve(entry.path).toLowerCase() === process.execPath.toLowerCase();
+    const enabled = available && Boolean(entry?.enabled);
+    if (
+      this.startup.enabled === enabled &&
+      this.startup.available === available
+    )
+      return;
+    this.startup = { enabled, available };
+    this.listeners.forEach((listener) => listener());
+  }
+
+  setStartAtSignIn(enabled: boolean) {
+    this.refreshStartup();
+    if (!this.startup.available || typeof enabled !== "boolean")
+      throw new Error(
+        "Start at sign-in is unavailable for this copy of Chirp.",
+      );
+    app.setLoginItemSettings({
+      name: "Chirp",
+      path: process.execPath,
+      openAtLogin: enabled,
+      enabled,
+    });
+    this.refreshStartup();
+    if (this.startup.enabled !== enabled)
+      throw new Error("Windows did not save the startup setting.");
   }
 
   onChange(listener: (key?: keyof Preferences) => void) {

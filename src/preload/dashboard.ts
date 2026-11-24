@@ -23,6 +23,8 @@ const dashboard: DashboardBridge = {
   set: (key, value) => ipcRenderer.invoke("dashboard-set", key, value),
   testMicrophone: (enabled) =>
     ipcRenderer.invoke("dashboard-mic-test", enabled),
+  setStartAtSignIn: (enabled) =>
+    ipcRenderer.invoke("dashboard-startup", enabled),
   onMicrophoneLevel: (listener) => {
     ipcRenderer.on("dashboard-mic-level", (_event, level: MicrophoneLevel) =>
       listener(level),
