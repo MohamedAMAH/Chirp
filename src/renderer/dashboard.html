@@ -433,7 +433,9 @@
                   >Hold to talk, or tap once to start and again to stop.</span
                 >
               </div>
-              <button type="button" class="key"><kbd>Right Alt</kbd></button>
+              <button type="button" class="key" id="dictation-key" disabled>
+                <kbd>Right Alt</kbd>
+              </button>
             </div>
           </div>
         </div>
@@ -447,17 +449,27 @@
                   >Discards the recording. Nothing is pasted or copied.</span
                 >
               </div>
-              <button type="button" class="key"><kbd>Esc</kbd></button>
+              <button type="button" class="key" id="cancel-key" disabled>
+                <kbd>Esc</kbd>
+              </button>
             </div>
             <div class="row">
               <div class="text">
                 <label class="name" for="limit">Time limit</label>
                 <span class="hint"
-                  >Stops and pastes when the limit is reached.</span
+                  >Ends a tap-to-talk recording at the limit.</span
                 >
               </div>
               <div class="number">
-                <input id="limit" type="number" value="5" min="1" />
+                <input
+                  id="limit"
+                  data-setting="timeLimitMinutes"
+                  type="number"
+                  value="5"
+                  min="1"
+                  max="30"
+                  step="1"
+                />
                 <span>minutes</span>
               </div>
             </div>
@@ -465,20 +477,30 @@
               <div class="text">
                 <label class="name" for="silence">Stop on silence</label>
                 <span class="hint"
-                  >Stops and pastes after a pause in speech.</span
+                  >Ends a tap-to-talk recording after a pause.</span
                 >
               </div>
               <div class="inline">
                 <div class="number">
                   <input
                     type="number"
+                    id="silence-duration"
+                    data-setting="silenceSeconds"
                     value="3"
                     min="1"
+                    max="60"
+                    step="1"
                     aria-label="Silence seconds"
                   />
                   <span>seconds</span>
                 </div>
-                <input id="silence" type="checkbox" role="switch" checked />
+                <input
+                  id="silence"
+                  data-setting="stopOnSilence"
+                  type="checkbox"
+                  role="switch"
+                  checked
+                />
               </div>
             </div>
           </div>

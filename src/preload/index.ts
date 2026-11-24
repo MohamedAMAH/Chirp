@@ -4,6 +4,7 @@ interface Recording {
   chunks: Float32Array[];
   streaming: boolean;
   sounds: boolean;
+  quietSamples: number;
   stream?: MediaStream;
   source?: MediaStreamAudioSourceNode;
   input?: AudioWorkletNode;
@@ -224,7 +225,7 @@ ipcRenderer.on(
   ) => {
     stopPreview();
     if (recording) close(recording);
-    const r: Recording = { id, chunks: [], streaming, sounds };
+    const r: Recording = { id, chunks: [], streaming, sounds, quietSamples: 0 };
     recording = r;
     if (sounds) void playCue(640);
     try {
@@ -261,7 +262,11 @@ ipcRenderer.on(
           if (r.streaming) ipcRenderer.send("audio", r.id, data, true);
           else r.chunks.push(data);
           updateMeter(data);
-          sendLevel(levelOf(data), false);
+          const level = levelOf(data);
+          sendLevel(level, false);
+          r.quietSamples = level < 0.06 ? r.quietSamples + data.length : 0;
+          if (r.quietSamples >= 16000)
+            ipcRenderer.send("capture-silence", r.id, r.quietSamples / 16000);
         }
       };
       r.source = ctx.createMediaStreamSource(stream);
@@ -314,15 +319,16 @@ window.addEventListener("DOMContentLoaded", () => {
     };
     motion?.cancel();
     motion = undefined;
+    const state = text.startsWith("Listening") ? "Listening" : text;
     indicator.dataset.state = [
       "Starting",
       "Listening",
       "Transcribing",
       "Copied",
-    ].includes(text)
-      ? text.toLowerCase()
+    ].includes(state)
+      ? state.toLowerCase()
       : "notice";
-    if (text === "Listening") {
+    if (state === "Listening") {
       meterBars.forEach((bar) => bar.style.removeProperty("--level"));
     }
     output.textContent = text;

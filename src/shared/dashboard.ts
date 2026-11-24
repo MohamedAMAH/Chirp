@@ -8,6 +8,9 @@ export interface Preferences {
   microphone: string;
   sounds: boolean;
   keepTranscripts: boolean;
+  timeLimitMinutes: number;
+  stopOnSilence: boolean;
+  silenceSeconds: number;
 }
 
 export interface Microphone {

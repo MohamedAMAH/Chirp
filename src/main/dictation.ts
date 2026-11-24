@@ -4,6 +4,8 @@ import { createInterface } from "node:readline";
 import { Shell } from "./shell";
 import { openDesktopHelper } from "./desktop";
 
+const tapMs = 220;
+
 export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   const state = shell.state;
   const base = app.isPackaged ? process.resourcesPath : app.getAppPath();
@@ -19,6 +21,11 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     paste: string | undefined,
     attempts = 0;
   let capturedSamples = 0;
+  let heldSince = 0;
+  let latched = false;
+  let stopping = false;
+  let timeLimit: ReturnType<typeof setTimeout> | undefined;
+  let silenceLimit = 0;
   let recentCopy: ((ok: boolean) => void) | undefined;
   let recentCopyId = 0;
   const send = (command: string) => {
@@ -52,12 +59,32 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     );
   }
   function clearSession() {
+    clearTimeout(timeLimit);
+    if (active !== undefined && latched) send("finish " + active);
+    latched = false;
+    stopping = false;
     if (active !== undefined && captureStreaming && loaded)
       worker?.postMessage({ init: false, id: active, action: "cancel" });
     active = undefined;
     starting = undefined;
     paste = undefined;
     if (!closing) shell.overlay.webContents.send("capture-cancel");
+  }
+  function listening() {
+    const status = latched ? "Listening · tap to stop" : "Listening";
+    shell.status(status);
+    shell.show(status);
+  }
+  function finish(id: number) {
+    if (id !== active || stopping) return;
+    stopping = true;
+    if (latched) send("finish " + id);
+    latched = false;
+    clearTimeout(timeLimit);
+    starting = undefined;
+    shell.status("Transcribing");
+    shell.show("Transcribing");
+    shell.overlay.webContents.send("capture-stop", id);
   }
   function reset(message?: string) {
     clearSession();
@@ -187,6 +214,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
         if (!loaded || !connected || active !== undefined) break;
         active = Number(n);
         capturedSamples = 0;
+        heldSince = performance.now();
         starting = active;
         captureStreaming = state.snapshot.preferences.streaming;
         if (captureStreaming)
@@ -203,15 +231,28 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
         shell.show("Starting");
         break;
       case "up":
-        if (active === Number(n)) {
-          starting = undefined;
-          shell.status("Transcribing");
-          shell.show("Transcribing");
-          shell.overlay.webContents.send("capture-stop", active);
+        if (active === Number(n) && !latched && !stopping) {
+          if (performance.now() - heldSince <= tapMs) {
+            latched = true;
+            const id = active;
+            const preferences = state.snapshot.preferences;
+            silenceLimit = preferences.stopOnSilence
+              ? preferences.silenceSeconds
+              : 0;
+            send("latch " + id);
+            timeLimit = setTimeout(
+              () => finish(id),
+              preferences.timeLimitMinutes * 60000,
+            );
+            if (starting === undefined) listening();
+          } else finish(active);
         }
         break;
+      case "stop":
+        if (latched) finish(Number(n));
+        break;
       case "cancel":
-        reset();
+        if (active === Number(n)) reset();
         break;
       case "busy": {
         const retry = paste;
@@ -250,9 +291,18 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       id === starting
     ) {
       starting = undefined;
-      shell.status("Listening");
-      shell.show("Listening");
+      listening();
     }
+  });
+  ipcMain.on("capture-silence", (event, id: number, seconds: number) => {
+    if (
+      !closing &&
+      latched &&
+      silenceLimit > 0 &&
+      seconds >= silenceLimit &&
+      event.sender === shell.overlay.webContents
+    )
+      finish(id);
   });
   ipcMain.on(
     "audio",
@@ -316,6 +366,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   loadModel();
   app.once("before-quit", () => {
     closing = true;
+    clearTimeout(timeLimit);
     recentCopy?.(false);
     unsubscribe();
     helper.stdin.end("quit\n");

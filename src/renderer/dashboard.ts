@@ -66,6 +66,8 @@
     );
     document.querySelector<HTMLInputElement>("#delay")!.disabled =
       !canSubmit || !preferences.autoEnter;
+    document.querySelector<HTMLInputElement>("#silence-duration")!.disabled =
+      !preferences.stopOnSilence;
     setText("delay-value", `${preferences.autoEnterDelay} ms`);
     setText(
       "live-auto-enter",
@@ -115,7 +117,7 @@
       const value =
         field.type === "checkbox"
           ? field.checked
-          : field.type === "range"
+          : field.type === "range" || field.type === "number"
             ? field.valueAsNumber
             : key === "streaming"
               ? field.value === "true"
@@ -316,28 +318,6 @@
       }
     });
   });
-
-  const live = '[data-setting], input[role="switch"]:not(:disabled), #test-mic';
-  for (const type of ["pointerdown", "mousedown", "click", "keydown"]) {
-    document.querySelector("main")?.addEventListener(
-      type,
-      (event) => {
-        const target = event.target as Element;
-        if (!target.closest(".card")) return;
-        if (event instanceof KeyboardEvent && event.key === "Tab") return;
-        if (target.closest(".dropdown")) return;
-        const control = target.closest("label")?.control ?? target;
-        if (
-          control.matches(live) ||
-          target.closest("#test-mic, #recent-transcripts button")
-        )
-          return;
-        event.preventDefault();
-        event.stopPropagation();
-      },
-      true,
-    );
-  }
 
   // A dropdown that matches the app instead of the system menu.
   for (const dropdown of document.querySelectorAll<HTMLElement>(".dropdown")) {

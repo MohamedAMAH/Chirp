@@ -50,6 +50,7 @@ class Input {
     int xiOpcode = 0;
     unsigned session = 0, lockMask = LockMask;
     bool armed = false, held = false, chord = false, focusChanged = false;
+    bool latched = false;
     bool copyOnly = false, autoEnter = false, submit = false, enterPending = false;
     std::chrono::milliseconds pasteSettle{600};
     bool enterKeyHeld = false, modeKeyHeld = false;
@@ -162,7 +163,10 @@ class Input {
         const bool down = event.evtype == XI_RawKeyPress;
         if (down && enterPending) submit = false;
         if (event.detail == rightAlt) {
-            if (down && !held && armed) {
+            if (down && latched) {
+                latched = false;
+                emit("stop " + std::to_string(session));
+            } else if (down && !held && armed) {
                 held = true;
                 armed = chord = focusChanged = false;
                 submit = autoEnter;
@@ -328,6 +332,10 @@ public:
                 if (command == "quit") return;
                 if (command == "arm") armed = true;
                 if (command == "disarm") armed = false;
+                if (command == "latch" || command == "finish") {
+                    unsigned id;
+                    if (line >> id && id == session) latched = command == "latch" && !held;
+                }
                 if (command == "delivery") {
                     bool copy, enter;
                     unsigned delay;

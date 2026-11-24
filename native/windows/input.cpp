@@ -12,6 +12,7 @@ namespace {
 HWND owner, destination;
 DWORD destinationPid;
 bool armed, held, chord, forwardAlt, focusChanged;
+bool latched, stopKeyHeld;
 bool copyOnly, autoEnter, keepHistory, submitThisHold;
 bool waitingToSubmit;
 unsigned session;
@@ -49,6 +50,15 @@ LRESULT CALLBACK keyboard(int code, WPARAM message, LPARAM data) {
     if(!(key.flags&LLKHF_INJECTED)) {
         if(down && waitingToSubmit)submitThisHold=false;
         if(key.vkCode==VK_RMENU) {
+            if(stopKeyHeld) {
+                if(!down)stopKeyHeld=false;
+                return 1;
+            }
+            if(down && latched) {
+                latched=false; stopKeyHeld=true;
+                emit("stop "+std::to_string(session));
+                return 1;
+            }
             if(down && !held && armed) {
                 held=true; armed=false; chord=false; ++session;
                 submitThisHold=autoEnter;
@@ -104,6 +114,12 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
         if(*line=="quit") PostQuitMessage(0);
         if(*line=="arm") armed=true;
         if(*line=="disarm") armed=false;
+        if(line->rfind("latch ",0)==0 || line->rfind("finish ",0)==0) {
+            std::istringstream fields(*line);
+            std::string action;
+            unsigned id;
+            if(fields>>action>>id && id==session) latched=action=="latch" && !held;
+        }
         if(line->rfind("delivery ",0)==0) {
             std::istringstream fields(line->substr(9));
             bool copy, submit;

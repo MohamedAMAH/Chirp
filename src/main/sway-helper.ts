@@ -32,6 +32,7 @@ let capture:
     }
   | undefined;
 let held = false;
+let latched = false;
 let copyOnly = false;
 let closed = false;
 let pending = Promise.resolve();
@@ -77,6 +78,11 @@ async function binding(command: string, revision: number) {
   if (command === "nop chirp:up") {
     if (held && capture) emit("up " + capture.id);
     held = false;
+    return;
+  }
+  if (command === "nop chirp:down" && latched && capture) {
+    latched = false;
+    emit("stop " + capture.id);
     return;
   }
   const target = await swayTarget();
@@ -186,6 +192,11 @@ commands.on("line", (line) => {
   if (command === "quit") close();
   else if (command === "arm") armed = true;
   else if (command === "disarm") armed = false;
+  else if (
+    (command === "latch" || command === "finish") &&
+    capture?.id === Number(id)
+  )
+    latched = command === "latch" && !held;
   else if (command === "delivery") copyOnly = id === "1";
   else if (command === "paste") enqueue(() => paste(Number(id), hex));
 });

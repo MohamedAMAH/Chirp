@@ -20,6 +20,11 @@ const validators: {
   clipboardHistory: (v): v is boolean => typeof v === "boolean",
   sounds: (v): v is boolean => typeof v === "boolean",
   keepTranscripts: (v): v is boolean => typeof v === "boolean",
+  stopOnSilence: (v): v is boolean => typeof v === "boolean",
+  timeLimitMinutes: (v): v is number =>
+    typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 30,
+  silenceSeconds: (v): v is number =>
+    typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 60,
   microphone: (v): v is string =>
     typeof v === "string" && v.length > 0 && v.length <= 256,
   autoEnterDelay: (v): v is number =>
@@ -53,6 +58,9 @@ export class ChirpState {
     microphone: "default",
     sounds: true,
     keepTranscripts: false,
+    timeLimitMinutes: 5,
+    stopOnSilence: true,
+    silenceSeconds: 3,
   };
   private status = "Loading";
   private microphones: Microphone[] = [];
