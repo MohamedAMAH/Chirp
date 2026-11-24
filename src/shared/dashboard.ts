@@ -4,6 +4,7 @@ export interface Preferences {
   delivery: "paste" | "copy";
   autoEnter: boolean;
   autoEnterDelay: number;
+  clipboardHistory: boolean;
 }
 
 export interface DashboardState {
@@ -12,6 +13,7 @@ export interface DashboardState {
   modelOverride: boolean;
   status: string;
   canAutoEnter: boolean;
+  canUseClipboardHistory: boolean;
 }
 
 export interface DashboardBridge {

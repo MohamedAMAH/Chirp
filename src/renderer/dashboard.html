@@ -551,9 +551,17 @@
                 <label class="name" for="history"
                   >Keep dictations in clipboard history</label
                 >
-                <span class="hint">Shows Chirp text in Win+V.</span>
+                <span class="hint" id="history-hint"
+                  >Shows Chirp text in Win+V.</span
+                >
               </div>
-              <input id="history" type="checkbox" role="switch" />
+              <input
+                id="history"
+                data-setting="clipboardHistory"
+                type="checkbox"
+                role="switch"
+                disabled
+              />
             </div>
           </div>
         </div>

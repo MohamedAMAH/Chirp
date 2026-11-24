@@ -41,6 +41,14 @@
       false;
     const canSubmit = state.canAutoEnter && preferences.delivery === "paste";
     document.querySelector<HTMLInputElement>("#enter")!.disabled = !canSubmit;
+    document.querySelector<HTMLInputElement>("#history")!.disabled =
+      !state.canUseClipboardHistory;
+    setText(
+      "history-hint",
+      state.canUseClipboardHistory
+        ? "Keeps the latest transcript on the clipboard and allows it in Win+V."
+        : "Clipboard history is available on Windows.",
+    );
     document.querySelector<HTMLInputElement>("#delay")!.disabled =
       !canSubmit || !preferences.autoEnter;
     setText("delay-value", `${preferences.autoEnterDelay} ms`);

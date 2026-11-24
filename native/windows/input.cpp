@@ -12,7 +12,7 @@ namespace {
 HWND owner, destination;
 DWORD destinationPid;
 bool armed, held, chord, forwardAlt, focusChanged;
-bool copyOnly, autoEnter, submitThisHold;
+bool copyOnly, autoEnter, keepHistory, submitThisHold;
 bool waitingToSubmit;
 unsigned session;
 constexpr UINT Command=WM_APP+1;
@@ -113,6 +113,7 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
                 autoEnter=submit && !copy;
                 pasteSettleMs=delay;
                 if(!autoEnter)submitThisHold=false;
+                if(fields>>keepHistory && !keepHistory)clipboard::historyText.clear();
             }
         }
 #ifdef CHIRP_TEST_INPUT
@@ -162,7 +163,7 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
             if(!(fields>>id>>hex)){emit("paste-error");return 0;}
             const auto text=clipboard::fromHex(hex);
             auto result=text.empty()?"paste-error":clipboard::deliver(owner,destination,destinationPid,
-                 session==id && !focusChanged && !copyOnly,text);
+                 session==id && !focusChanged && !copyOnly,text,keepHistory);
             if(result!="pending")emit(result);
         }
         return 0;

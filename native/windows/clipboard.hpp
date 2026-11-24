@@ -6,6 +6,7 @@ namespace clipboard {
 using Item=std::pair<UINT,HANDLE>;
 std::vector<Item> prior;
 std::wstring delayed;
+std::wstring historyText;
 DWORD readerPid, sequence;
 bool waiting;
 int retries;
@@ -20,7 +21,7 @@ void discard() {
         else if(fmt==CF_ENHMETAFILE || fmt==CF_DSPENHMETAFILE) DeleteEnhMetaFile((HENHMETAFILE)handle);
         else GlobalFree(handle);
     }
-    prior.clear(); waiting=false;
+    prior.clear(); historyText.clear(); waiting=false;
 }
 bool save() {
     for(UINT f=EnumClipboardFormats(0);f;f=EnumClipboardFormats(f)) {
@@ -55,10 +56,14 @@ void restore(HWND owner) {
         if(++retries>25){KillTimer(owner,Timer);discard();} return;
     }
     auto saved=std::move(prior);
-    if(GetClipboardSequenceNumber()==sequence && EmptyClipboard())
-        for(auto& entry:saved) {
+    auto forHistory=std::move(historyText);
+    if(GetClipboardSequenceNumber()==sequence && EmptyClipboard()) {
+        if(!forHistory.empty())
+            publish(CF_UNICODETEXT,forHistory.c_str(),(forHistory.size()+1)*sizeof(wchar_t));
+        else for(auto& entry:saved) {
             if(SetClipboardData(entry.first,entry.second))entry.second=nullptr;
         }
+    }
     CloseClipboard(); prior=std::move(saved); discard(); KillTimer(owner,Timer);
 }
 bool handle(HWND owner,UINT msg,WPARAM wp,void (*onPasted)()=nullptr) {
@@ -66,12 +71,15 @@ bool handle(HWND owner,UINT msg,WPARAM wp,void (*onPasted)()=nullptr) {
         DWORD pid=0; GetWindowThreadProcessId(GetOpenClipboardWindow(),&pid);
         // Chromium can call OpenClipboard(nullptr), giving the reader no HWND.
         if(!pid)GetWindowThreadProcessId(GetForegroundWindow(),&pid);
-        if(render() && waiting && pid==readerPid) {
-            sequence=GetClipboardSequenceNumber(); retries=0; SetTimer(owner,Timer,RestoreDelayMs,nullptr);
-            if(awaitingRead){
-                awaitingRead=false; KillTimer(owner,ReadTimeout);
-                if(onPasted)onPasted();
-                else std::cout<<"pasted"<<std::endl;
+        if(render() && waiting) {
+            sequence=GetClipboardSequenceNumber();
+            if(pid==readerPid) {
+                retries=0; SetTimer(owner,Timer,RestoreDelayMs,nullptr);
+                if(awaitingRead){
+                    awaitingRead=false; KillTimer(owner,ReadTimeout);
+                    if(onPasted)onPasted();
+                    else std::cout<<"pasted"<<std::endl;
+                }
             }
         }
         return true;
@@ -88,7 +96,9 @@ bool handle(HWND owner,UINT msg,WPARAM wp,void (*onPasted)()=nullptr) {
     if(msg==WM_TIMER && wp==ReadTimeout){
         KillTimer(owner,ReadTimeout);
         if(awaitingRead){
-            awaitingRead=false;discard();
+            awaitingRead=false;
+            if(historyText.empty())discard();
+            else SetTimer(owner,Timer,RestoreDelayMs,nullptr);
             std::cout<<"copied"<<std::endl;
         }
         return true;
@@ -109,7 +119,7 @@ bool shortcut(bool terminal) {
     if(terminal)key(VK_SHIFT,KEYEVENTF_KEYUP);key(VK_CONTROL,KEYEVENTF_KEYUP);
     return SendInput((UINT)input.size(),input.data(),sizeof(INPUT))==input.size();
 }
-std::string deliver(HWND owner,HWND target,DWORD pid,bool automatic,const std::wstring& text) {
+std::string deliver(HWND owner,HWND target,DWORD pid,bool automatic,const std::wstring& text,bool keepHistory=false) {
     if(!OpenClipboard(owner))return "busy";
     discard();
     wchar_t cls[100]{};GetClassNameW(target,cls,100);
@@ -119,7 +129,9 @@ std::string deliver(HWND owner,HWND target,DWORD pid,bool automatic,const std::w
     automatic=automatic && target && target==GetForegroundWindow() && save();
     auto saved=std::move(prior);
     DWORD marker=0;
-    bool ok=EmptyClipboard() && publish(RegisterClipboardFormatW(L"ExcludeClipboardContentFromMonitorProcessing"),&marker,sizeof(marker));
+    // Hide the delayed clipboard entry from history monitors until the target reads it.
+    bool ok=EmptyClipboard() && ((keepHistory && !automatic) ||
+        publish(RegisterClipboardFormatW(L"ExcludeClipboardContentFromMonitorProcessing"),&marker,sizeof(marker)));
     if(ok){
         delayed=text;
         if(automatic){SetClipboardData(CF_UNICODETEXT,nullptr);ok=IsClipboardFormatAvailable(CF_UNICODETEXT);}
@@ -128,10 +140,17 @@ std::string deliver(HWND owner,HWND target,DWORD pid,bool automatic,const std::w
     CloseClipboard(); prior=std::move(saved);
     if(!ok){discard();return "paste-error";}
     waiting=automatic; readerPid=pid;
+    if(automatic && keepHistory) {
+        historyText=text;
+        sequence=GetClipboardSequenceNumber();
+        retries=0;
+    }
     if(automatic && GetForegroundWindow()==target && shortcut(terminal)){
         awaitingRead=true; SetTimer(owner,ReadTimeout,1500,nullptr); return "pending";
     }
-    discard();return "copied";
+    if(historyText.empty())discard();
+    else SetTimer(owner,Timer,RestoreDelayMs,nullptr);
+    return "copied";
 }
 std::wstring fromHex(const std::string& hex) {
     if(hex.empty() || hex.size()%2)return {};

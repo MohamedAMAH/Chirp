@@ -26,7 +26,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     const copy = preferences.delivery === "copy";
     const submit = canAutoEnter && preferences.autoEnter && !copy;
     send(
-      `delivery ${Number(copy)} ${Number(submit)} ${preferences.autoEnterDelay}`,
+      `delivery ${Number(copy)} ${Number(submit)} ${preferences.autoEnterDelay} ${Number(preferences.clipboardHistory)}`,
     );
   }
   function clearSession() {
@@ -95,7 +95,12 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     if (key === "model") loadModel();
     if (key === "streaming" && loaded && connected && active === undefined)
       shell.status("Ready");
-    if (key === "delivery" || key === "autoEnter" || key === "autoEnterDelay")
+    if (
+      key === "delivery" ||
+      key === "autoEnter" ||
+      key === "autoEnterDelay" ||
+      key === "clipboardHistory"
+    )
       configureDelivery();
   });
   helper.stdin.on("error", () => {});

@@ -11,6 +11,7 @@ const validators: {
   streaming: (v): v is boolean => typeof v === "boolean",
   delivery: (v): v is Preferences["delivery"] => v === "paste" || v === "copy",
   autoEnter: (v): v is boolean => typeof v === "boolean",
+  clipboardHistory: (v): v is boolean => typeof v === "boolean",
   autoEnterDelay: (v): v is number =>
     typeof v === "number" && v >= 300 && v <= 2000 && v % 50 === 0,
 };
@@ -35,6 +36,7 @@ export class ChirpState {
     delivery: "paste",
     autoEnter: false,
     autoEnterDelay: 600,
+    clipboardHistory: false,
   };
   private status = "Loading";
 
@@ -65,6 +67,7 @@ export class ChirpState {
       modelOverride: model !== undefined,
       status: this.status,
       canAutoEnter: !isSway(),
+      canUseClipboardHistory: process.platform === "win32",
     };
   }
 
