@@ -5,6 +5,7 @@ import type {
   DashboardState,
   Microphone,
   Preferences,
+  RecentTranscript,
 } from "../shared/dashboard";
 import { isSway } from "./sway";
 import { DictationActivity } from "./activity";
@@ -18,6 +19,7 @@ const validators: {
   autoEnter: (v): v is boolean => typeof v === "boolean",
   clipboardHistory: (v): v is boolean => typeof v === "boolean",
   sounds: (v): v is boolean => typeof v === "boolean",
+  keepTranscripts: (v): v is boolean => typeof v === "boolean",
   microphone: (v): v is string =>
     typeof v === "string" && v.length > 0 && v.length <= 256,
   autoEnterDelay: (v): v is number =>
@@ -50,10 +52,13 @@ export class ChirpState {
     clipboardHistory: false,
     microphone: "default",
     sounds: true,
+    keepTranscripts: false,
   };
   private status = "Loading";
   private microphones: Microphone[] = [];
   private startup = { enabled: false, available: false };
+  private recent: RecentTranscript[] = [];
+  private transcriptId = 0;
 
   constructor() {
     this.refreshStartup();
@@ -87,6 +92,7 @@ export class ChirpState {
       microphones: this.microphones,
       startup: this.startup,
       activity: this.activity.snapshot,
+      recent: this.recent,
     };
   }
 
@@ -97,6 +103,7 @@ export class ChirpState {
     writeFileSync(this.file + ".tmp", JSON.stringify(next, null, 2), "utf8");
     renameSync(this.file + ".tmp", this.file);
     this.preferences[key] = value;
+    if (key === "keepTranscripts" && !value) this.recent = [];
     this.listeners.forEach((listener) => listener(key));
   }
 
@@ -113,6 +120,12 @@ export class ChirpState {
   }
 
   recordDictation(text: string, samples: number) {
+    if (this.preferences.keepTranscripts) {
+      this.recent = [
+        { id: ++this.transcriptId, text, recordedAt: Date.now() },
+        ...this.recent.slice(0, 9),
+      ];
+    }
     this.activity.record(text, samples);
     this.listeners.forEach((listener) => listener());
   }

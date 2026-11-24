@@ -1,4 +1,4 @@
-import { app, ipcMain, utilityProcess } from "electron";
+import { app, clipboard, ipcMain, utilityProcess } from "electron";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { Shell } from "./shell";
@@ -19,8 +19,29 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     paste: string | undefined,
     attempts = 0;
   let capturedSamples = 0;
+  let recentCopy: ((ok: boolean) => void) | undefined;
+  let recentCopyId = 0;
   const send = (command: string) => {
     if (!closing && helper.stdin.writable) helper.stdin.write(command + "\n");
+  };
+  shell.copyRecentText = async (text) => {
+    if (!connected || closing || active !== undefined || recentCopy)
+      throw new Error("Wait until Chirp has finished the current dictation.");
+    if (process.platform !== "win32") {
+      clipboard.writeText(text);
+      return;
+    }
+    await new Promise<void>((resolve, reject) => {
+      const id = ++recentCopyId;
+      const timeout = setTimeout(() => recentCopy?.(false), 2000);
+      recentCopy = (ok) => {
+        clearTimeout(timeout);
+        recentCopy = undefined;
+        if (ok) resolve();
+        else reject(new Error("Could not copy the transcript."));
+      };
+      send(`copy-recent ${id} ${Buffer.from(text, "utf8").toString("hex")}`);
+    });
   };
   function configureDelivery() {
     const { preferences, canAutoEnter } = state.snapshot;
@@ -52,6 +73,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
     else shell.hide();
   }
   function fail(message: string) {
+    recentCopy?.(false);
     clearSession();
     if (closing) return;
     shell.hide();
@@ -212,6 +234,10 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       case "clipboard-changed":
         reset("Clipboard changed");
         break;
+      case "recent-copied":
+      case "recent-copy-failed":
+        if (Number(n) === recentCopyId) recentCopy?.(event === "recent-copied");
+        break;
       case "paste-error":
         reset("Paste failed");
         break;
@@ -278,7 +304,6 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       reset(result.failure || "No speech");
       return;
     }
-    state.recordDictation(result.text, capturedSamples);
     paste =
       "paste " +
       active +
@@ -286,10 +311,12 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       Buffer.from(result.text, "utf8").toString("hex");
     attempts = 0;
     send(paste);
+    state.recordDictation(result.text, capturedSamples);
   }
   loadModel();
   app.once("before-quit", () => {
     closing = true;
+    recentCopy?.(false);
     unsubscribe();
     helper.stdin.end("quit\n");
     worker?.kill();

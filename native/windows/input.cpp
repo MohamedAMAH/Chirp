@@ -166,6 +166,16 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
                  session==id && !focusChanged && !copyOnly,text,keepHistory);
             if(result!="pending")emit(result);
         }
+        if(line->rfind("copy-recent ",0)==0) {
+            std::istringstream fields(line->substr(12));
+            unsigned id;
+            std::string hex;
+            if(!(fields>>id>>hex))return 0;
+            const auto text=clipboard::fromHex(hex);
+            const bool copied=!text.empty() &&
+                clipboard::deliver(owner,nullptr,0,false,text,keepHistory)=="copied";
+            emit(std::string(copied?"recent-copied ":"recent-copy-failed ")+std::to_string(id));
+        }
         return 0;
     }
     return DefWindowProcW(window,msg,wp,lp);

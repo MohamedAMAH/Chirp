@@ -7,6 +7,7 @@ export interface Preferences {
   clipboardHistory: boolean;
   microphone: string;
   sounds: boolean;
+  keepTranscripts: boolean;
 }
 
 export interface Microphone {
@@ -26,6 +27,12 @@ export interface DictationTotals {
   seconds: number;
 }
 
+export interface RecentTranscript {
+  id: number;
+  text: string;
+  recordedAt: number;
+}
+
 export interface DashboardState {
   preferences: Preferences;
   model: Preferences["model"];
@@ -40,6 +47,7 @@ export interface DashboardState {
     allTime: DictationTotals;
     dailyWords: number[];
   };
+  recent: RecentTranscript[];
 }
 
 export interface DashboardBridge {
@@ -53,4 +61,5 @@ export interface DashboardBridge {
   testMicrophone(enabled: boolean): Promise<void>;
   onMicrophoneLevel(listener: (level: MicrophoneLevel) => void): void;
   setStartAtSignIn(enabled: boolean): Promise<void>;
+  copyTranscript(id: number): Promise<void>;
 }

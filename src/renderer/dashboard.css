@@ -543,6 +543,24 @@ input[type="range"] {
   text-align: center;
   color: var(--muted);
 }
+.recent {
+  max-height: 345px;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.recent .text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent time {
+  display: block;
+  margin-top: 3px;
+}
 
 /* Overview */
 .tiles {

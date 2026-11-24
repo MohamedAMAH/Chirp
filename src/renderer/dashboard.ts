@@ -3,6 +3,7 @@
   type DashboardState = import("../shared/dashboard").DashboardState;
   type Preferences = import("../shared/dashboard").Preferences;
   type DictationTotals = import("../shared/dashboard").DictationTotals;
+  type RecentTranscript = import("../shared/dashboard").RecentTranscript;
   const bridge = (window as unknown as { chirpWindow?: DashboardBridge })
     .chirpWindow;
   const fields = document.querySelectorAll<HTMLInputElement>("[data-setting]");
@@ -12,9 +13,9 @@
   let current: DashboardState | undefined;
   let renderMicrophones: ((state: DashboardState) => void) | undefined;
   let messageTimer: number | undefined;
-  function showError(error: string) {
+  function showMessage(text: string) {
     clearTimeout(messageTimer);
-    message.textContent = error;
+    message.textContent = text;
     message.hidden = false;
     messageTimer = window.setTimeout(() => (message.hidden = true), 4500);
   }
@@ -35,6 +36,7 @@
     setText("live-status", state.status);
     setText("live-model", model === "qwen" ? "Qwen" : "Parakeet");
     renderActivity(state.activity);
+    renderRecent(state.recent, preferences.keepTranscripts);
     renderMicrophones?.(state);
     setText(
       "live-mode",
@@ -91,7 +93,7 @@
       await bridge?.set(key, value);
     } catch {
       if (current) render(current);
-      showError("Chirp could not save this setting.");
+      showMessage("Chirp could not save this setting.");
     }
   }
   bridge?.onChange(render);
@@ -100,12 +102,12 @@
       await bridge?.setStartAtSignIn(signIn.checked);
     } catch {
       if (current) render(current);
-      showError("Chirp could not change the Windows startup setting.");
+      showMessage("Chirp could not change the Windows startup setting.");
     }
   });
   void bridge
     ?.read()
-    .then(render, () => showError("Chirp could not load its settings."));
+    .then(render, () => showMessage("Chirp could not load its settings."));
   for (const field of fields) {
     field.addEventListener("change", () => {
       if (field.type === "radio" && !field.checked) return;
@@ -144,15 +146,65 @@
       await bridge?.testMicrophone(active);
     } catch {
       renderLevel(0, false);
-      showError("Chirp could not test the microphone.");
+      showMessage("Chirp could not test the microphone.");
     }
   }
   testMic.addEventListener("click", () => void testMicrophone(!testing));
   bridge?.onMicrophoneLevel(({ level, testing, error }) => {
     renderLevel(level, testing);
-    if (error) showError(error);
+    if (error) showMessage(error);
   });
   window.addEventListener("blur", () => renderLevel(0, false));
+
+  const recentList = document.querySelector<HTMLUListElement>(
+    "#recent-transcripts",
+  )!;
+  const emptyList = document.querySelector<HTMLElement>("#transcript-empty")!;
+  const transcriptTime = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+  let lastRecent = "";
+  function renderRecent(recent: RecentTranscript[], keeping: boolean) {
+    const signature = `${keeping}:${recent.map(({ id }) => id).join(",")}`;
+    if (lastRecent === signature) return;
+    lastRecent = signature;
+    emptyList.hidden = recent.length > 0;
+    recentList.hidden = !recent.length;
+    emptyList.textContent = keeping
+      ? "Your recent dictations appear here."
+      : "Recent transcripts are off.";
+    recentList.replaceChildren(
+      ...recent.map((transcript) => {
+        const row = document.createElement("li");
+        row.className = "row";
+        const details = document.createElement("div");
+        details.className = "text";
+        details.textContent = transcript.text;
+        const time = document.createElement("time");
+        time.className = "hint";
+        time.dateTime = new Date(transcript.recordedAt).toISOString();
+        time.textContent = transcriptTime.format(transcript.recordedAt);
+        details.append(time);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "key";
+        const label = document.createElement("kbd");
+        label.textContent = "Copy";
+        button.append(label);
+        button.addEventListener("click", async () => {
+          try {
+            await bridge?.copyTranscript(transcript.id);
+            showMessage("Transcript copied.");
+          } catch {
+            showMessage("Chirp could not copy this transcript.");
+          }
+        });
+        row.append(details, button);
+        return row;
+      }),
+    );
+  }
 
   const counts = document.querySelectorAll<HTMLElement>(".count");
   const allTimeCounts = document.querySelectorAll<HTMLElement>(".tile-total");
@@ -275,7 +327,11 @@
         if (event instanceof KeyboardEvent && event.key === "Tab") return;
         if (target.closest(".dropdown")) return;
         const control = target.closest("label")?.control ?? target;
-        if (control.matches(live) || target.closest("#test-mic")) return;
+        if (
+          control.matches(live) ||
+          target.closest("#test-mic, #recent-transcripts button")
+        )
+          return;
         event.preventDefault();
         event.stopPropagation();
       },

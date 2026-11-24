@@ -639,9 +639,17 @@
                   >Kept in memory only and cleared when Chirp quits.</span
                 >
               </div>
-              <input id="keep" type="checkbox" role="switch" />
+              <input
+                id="keep"
+                data-setting="keepTranscripts"
+                type="checkbox"
+                role="switch"
+              />
             </div>
-            <p class="empty">Your recent dictations appear here.</p>
+            <p id="transcript-empty" class="empty">
+              Recent transcripts are off.
+            </p>
+            <ul class="recent" id="recent-transcripts" hidden></ul>
           </div>
         </div>
       </section>

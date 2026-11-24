@@ -22,6 +22,7 @@ function icon(name = "tray.png") {
 }
 export class Shell {
   readonly state = new ChirpState();
+  copyRecentText?: (text: string) => Promise<void>;
   readonly tray = new Tray(icon());
   readonly overlay = new BrowserWindow({
     width: 220,
@@ -189,6 +190,14 @@ export class Shell {
     window.webContents.ipc.handle("dashboard-startup", (_event, enabled) =>
       this.state.setStartAtSignIn(enabled),
     );
+    window.webContents.ipc.handle("dashboard-copy-transcript", (_event, id) => {
+      const transcript = this.state.snapshot.recent.find(
+        (item) => item.id === id,
+      );
+      if (!transcript || !this.copyRecentText)
+        throw new Error("This transcript is unavailable.");
+      return this.copyRecentText(transcript.text);
+    });
     const reportMaximized = () =>
       window.webContents.send("dashboard-maximized", window.isMaximized());
     window.on("maximize", reportMaximized);
