@@ -13,6 +13,7 @@
 #include <cctype>
 #include <cstring>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <string>
 
@@ -46,11 +47,12 @@ class Input {
     Display* display;
     Window root, owner, destination = None;
     Atom clipboard, utf8, targets, textPlain;
-    KeyCode rightAlt, toggleEnter, toggleMode;
+    KeyCode rightAlt, dictationKey, cancelKey, toggleEnter, toggleMode;
     int xiOpcode = 0;
     unsigned session = 0, lockMask = LockMask;
     bool armed = false, held = false, chord = false, focusChanged = false;
     bool latched = false;
+    bool stopPress = false, captureOpen = false, cancelGrabbed = false;
     bool copyOnly = false, autoEnter = false, submit = false, enterPending = false;
     std::chrono::milliseconds pasteSettle{600};
     bool enterKeyHeld = false, modeKeyHeld = false;
@@ -158,29 +160,70 @@ class Input {
         }
     }
 
+    void beginCapture() {
+        captureOpen = true;
+        if (!cancelKey) return;
+        XSync(display, False);
+        xError = 0;
+        XGrabKey(display, cancelKey, AnyModifier, root, False, GrabModeAsync, GrabModeAsync);
+        XSync(display, False);
+        cancelGrabbed = !xError;
+        if (!cancelGrabbed) nearPointer("shortcut-unavailable Cancel");
+    }
+
+    void endCapture() {
+        latched = false;
+        captureOpen = false;
+        if (cancelGrabbed) {
+            XUngrabKey(display, cancelKey, AnyModifier, root);
+            XFlush(display);
+            cancelGrabbed = false;
+        }
+    }
+
+    void cancelCapture() {
+        endCapture();
+        chord = true;
+        emit("cancel " + std::to_string(session));
+    }
+
+    bool otherKeyDown() const {
+        char keys[32]{};
+        XQueryKeymap(display, keys);
+        keys[dictationKey / 8] &= ~(1U << (dictationKey % 8));
+        return std::any_of(std::begin(keys), std::end(keys), [](char key) { return key != 0; });
+    }
+
     void rawKey(const XIRawEvent& event) {
         if (event.flags & XIKeyRepeat) return;
         const bool down = event.evtype == XI_RawKeyPress;
         if (down && enterPending) submit = false;
-        if (event.detail == rightAlt) {
-            if (down && latched) {
-                latched = false;
-                emit("stop " + std::to_string(session));
-            } else if (down && !held && armed) {
+        if (event.detail == dictationKey) {
+            if (down && !held && (armed || latched) && !otherKeyDown()) {
                 held = true;
-                armed = chord = focusChanged = false;
-                submit = autoEnter;
-                if (destination) XSelectInput(display, destination, NoEventMask);
-                destination = focus();
-                if (destination) XSelectInput(display, destination, FocusChangeMask);
-                nearPointer("down " + std::to_string(++session));
+                chord = false;
+                stopPress = latched;
+                if (!latched) {
+                    armed = focusChanged = false;
+                    submit = autoEnter;
+                    if (destination) XSelectInput(display, destination, NoEventMask);
+                    destination = focus();
+                    if (destination) XSelectInput(display, destination, FocusChangeMask);
+                    beginCapture();
+                    nearPointer("down " + std::to_string(++session));
+                }
             } else if (!down && held) {
                 held = false;
-                if (!chord) emit("up " + std::to_string(session));
+                if (!chord && captureOpen) {
+                    if (stopPress) {
+                        endCapture();
+                        emit("stop " + std::to_string(session));
+                    } else emit("up " + std::to_string(session));
+                }
             }
-        } else if (down && held && !chord) {
-            chord = true;
-            emit("cancel " + std::to_string(session));
+        } else if (down && held && !chord && captureOpen &&
+                   !(event.detail == cancelKey && cancelGrabbed)) {
+            cancelCapture();
         }
     }
 
@@ -193,6 +236,8 @@ class Input {
         } else if (event.type == FocusOut && event.xfocus.window == destination &&
                    event.xfocus.mode == NotifyNormal) {
             focusChanged = true;
+        } else if (event.type == KeyPress && event.xkey.keycode == cancelKey && cancelGrabbed) {
+            cancelCapture();
         } else if (event.type == KeyRelease && event.xkey.keycode == toggleEnter) {
             enterKeyHeld = false;
         } else if (event.type == KeyRelease && event.xkey.keycode == toggleMode) {
@@ -260,7 +305,8 @@ public:
         utf8(XInternAtom(x, "UTF8_STRING", False)),
         targets(XInternAtom(x, "TARGETS", False)),
         textPlain(XInternAtom(x, "text/plain;charset=utf-8", False)),
-        rightAlt(code(XK_Alt_R)), toggleEnter(code(XK_b)), toggleMode(code(XK_n)) {}
+        rightAlt(code(XK_Alt_R)), dictationKey(rightAlt), cancelKey(code(XK_Escape)),
+        toggleEnter(code(XK_b)), toggleMode(code(XK_n)) {}
 
     bool connect() {
         int eventBase, errorBase, major = 2, minor = 1, event, error;
@@ -275,6 +321,7 @@ public:
             XkbFreeKeyboard(map, XkbAllComponentsMask, True);
         }
         if (!rightAlt) return false;
+        dictationKey = rightAlt;
         XkbSetDetectableAutoRepeat(display, True, nullptr);
         unsigned char mask[XIMaskLen(XI_RawKeyRelease)]{};
         XISetMask(mask, XI_RawKeyPress);
@@ -334,7 +381,18 @@ public:
                 if (command == "disarm") armed = false;
                 if (command == "latch" || command == "finish") {
                     unsigned id;
-                    if (line >> id && id == session) latched = command == "latch" && !held;
+                    if (line >> id && id == session) {
+                        if (command == "finish") endCapture();
+                        else latched = !held && captureOpen;
+                    }
+                }
+                if (command == "keys") {
+                    unsigned primary, cancel;
+                    if (line >> primary >> cancel && !held && !captureOpen &&
+                        primary <= 255 && cancel <= 255) {
+                        dictationKey = primary ? static_cast<KeyCode>(primary) : rightAlt;
+                        cancelKey = static_cast<KeyCode>(cancel);
+                    }
                 }
                 if (command == "delivery") {
                     bool copy, enter;

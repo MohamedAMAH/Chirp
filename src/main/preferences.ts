@@ -9,6 +9,11 @@ import type {
 } from "../shared/dashboard";
 import { isSway } from "./sway";
 import { DictationActivity } from "./activity";
+import { bindableKeys, physicalKey } from "./keys";
+
+const binding =
+  process.platform === "win32" ? "windows" : isSway() ? "sway" : "x11";
+const availableKeys = bindableKeys(binding === "windows");
 
 const validators: {
   [K in keyof Preferences]: (v: unknown) => v is Preferences[K];
@@ -21,6 +26,8 @@ const validators: {
   sounds: (v): v is boolean => typeof v === "boolean",
   keepTranscripts: (v): v is boolean => typeof v === "boolean",
   stopOnSilence: (v): v is boolean => typeof v === "boolean",
+  dictationKey: (v): v is string => typeof v === "string" && !!physicalKey(v),
+  cancelKey: (v): v is string => typeof v === "string" && !!physicalKey(v),
   timeLimitMinutes: (v): v is number =>
     typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 30,
   silenceSeconds: (v): v is number =>
@@ -61,6 +68,8 @@ export class ChirpState {
     timeLimitMinutes: 5,
     stopOnSilence: true,
     silenceSeconds: 3,
+    dictationKey: "AltRight",
+    cancelKey: "Escape",
   };
   private status = "Loading";
   private microphones: Microphone[] = [];
@@ -90,13 +99,31 @@ export class ChirpState {
     const override =
       this.override === "parakeet-streaming" ? "parakeet" : this.override;
     const model = validPreference("model", override) ? override : undefined;
+    const dictationKey =
+      binding !== "sway" &&
+      availableKeys.dictation.includes(this.preferences.dictationKey)
+        ? this.preferences.dictationKey
+        : "AltRight";
+    const cancelKey =
+      this.preferences.cancelKey !== dictationKey &&
+      availableKeys.cancel.includes(this.preferences.cancelKey)
+        ? this.preferences.cancelKey
+        : dictationKey === "Escape"
+          ? "F12"
+          : "Escape";
     return {
-      preferences: { ...this.preferences },
+      preferences: {
+        ...this.preferences,
+        dictationKey,
+        cancelKey,
+      },
       model: model ?? this.preferences.model,
       modelOverride: model !== undefined,
       status: this.status,
       canAutoEnter: !isSway(),
       canUseClipboardHistory: process.platform === "win32",
+      binding,
+      bindableKeys: availableKeys,
       microphones: this.microphones,
       startup: this.startup,
       activity: this.activity.snapshot,
@@ -106,6 +133,21 @@ export class ChirpState {
 
   set<K extends keyof Preferences>(key: K, value: unknown) {
     if (!validPreference(key, value)) throw new Error("Invalid Chirp setting.");
+    if (key === "dictationKey" || key === "cancelKey") {
+      const list =
+        key === "dictationKey" ? availableKeys.dictation : availableKeys.cancel;
+      const other =
+        key === "dictationKey"
+          ? this.snapshot.preferences.cancelKey
+          : this.snapshot.preferences.dictationKey;
+      if (
+        binding === "sway" ||
+        typeof value !== "string" ||
+        value === other ||
+        !list.includes(value)
+      )
+        throw new Error("This key is unavailable for this shortcut.");
+    }
     if (this.preferences[key] === value) return;
     const next = { ...this.preferences, [key]: value };
     writeFileSync(this.file + ".tmp", JSON.stringify(next, null, 2), "utf8");

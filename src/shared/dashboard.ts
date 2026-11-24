@@ -11,6 +11,8 @@ export interface Preferences {
   timeLimitMinutes: number;
   stopOnSilence: boolean;
   silenceSeconds: number;
+  dictationKey: string;
+  cancelKey: string;
 }
 
 export interface Microphone {
@@ -43,6 +45,8 @@ export interface DashboardState {
   status: string;
   canAutoEnter: boolean;
   canUseClipboardHistory: boolean;
+  binding: "windows" | "x11" | "sway";
+  bindableKeys: { dictation: string[]; cancel: string[] };
   microphones: Microphone[];
   startup: { enabled: boolean; available: boolean };
   activity: {
@@ -65,4 +69,5 @@ export interface DashboardBridge {
   onMicrophoneLevel(listener: (level: MicrophoneLevel) => void): void;
   setStartAtSignIn(enabled: boolean): Promise<void>;
   copyTranscript(id: number): Promise<void>;
+  captureKey(enabled: boolean): Promise<void>;
 }

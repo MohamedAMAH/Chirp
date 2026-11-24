@@ -3,6 +3,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { Shell } from "./shell";
 import { openDesktopHelper } from "./desktop";
+import { physicalKey } from "./keys";
 
 const tapMs = 220;
 
@@ -26,11 +27,31 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   let stopping = false;
   let timeLimit: ReturnType<typeof setTimeout> | undefined;
   let silenceLimit = 0;
+  let editingKey = false;
   let recentCopy: ((ok: boolean) => void) | undefined;
   let recentCopyId = 0;
   const send = (command: string) => {
     if (!closing && helper.stdin.writable) helper.stdin.write(command + "\n");
   };
+  shell.captureDashboardKey = (enabled) => {
+    if (enabled && (active !== undefined || !connected))
+      throw new Error("Finish dictating before changing a shortcut.");
+    if (editingKey === enabled) return;
+    editingKey = enabled;
+    if (enabled) send("disarm");
+    else if (connected && loaded && !retiring) send("arm");
+  };
+  function configureKeys() {
+    const { preferences, binding } = state.snapshot;
+    if (binding === "sway") return;
+    const dictation = physicalKey(preferences.dictationKey)!;
+    const cancel = physicalKey(preferences.cancelKey)!;
+    if (binding === "windows") send(`keys ${dictation.scan} ${cancel.scan}`);
+    else
+      send(
+        `keys ${preferences.dictationKey === "AltRight" ? 0 : dictation.x11} ${cancel.x11}`,
+      );
+  }
   shell.copyRecentText = async (text) => {
     if (!connected || closing || active !== undefined || recentCopy)
       throw new Error("Wait until Chirp has finished the current dictation.");
@@ -60,7 +81,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   }
   function clearSession() {
     clearTimeout(timeLimit);
-    if (active !== undefined && latched) send("finish " + active);
+    if (active !== undefined) send("finish " + active);
     latched = false;
     stopping = false;
     if (active !== undefined && captureStreaming && loaded)
@@ -78,7 +99,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   function finish(id: number) {
     if (id !== active || stopping) return;
     stopping = true;
-    if (latched) send("finish " + id);
+    send("finish " + id);
     latched = false;
     clearTimeout(timeLimit);
     starting = undefined;
@@ -94,7 +115,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       return;
     }
     if (!connected || !loaded || closing) return;
-    send("arm");
+    if (!editingKey) send("arm");
     shell.status("Ready");
     if (message) shell.show(message, true);
     else shell.hide();
@@ -143,6 +164,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
   }
   const unsubscribe = state.onChange((key) => {
     if (key === "model") loadModel();
+    if (key === "dictationKey" || key === "cancelKey") configureKeys();
     if (key === "streaming" && loaded && connected && active === undefined)
       shell.status("Ready");
     if (
@@ -208,10 +230,11 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
       case "connected":
         connected = true;
         configureDelivery();
+        configureKeys();
         reset();
         break;
       case "down":
-        if (!loaded || !connected || active !== undefined) break;
+        if (!loaded || !connected || active !== undefined || editingKey) break;
         active = Number(n);
         capturedSamples = 0;
         heldSince = performance.now();

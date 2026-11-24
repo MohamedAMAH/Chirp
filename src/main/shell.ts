@@ -23,6 +23,7 @@ function icon(name = "tray.png") {
 export class Shell {
   readonly state = new ChirpState();
   copyRecentText?: (text: string) => Promise<void>;
+  captureDashboardKey?: (enabled: boolean) => void;
   readonly tray = new Tray(icon());
   readonly overlay = new BrowserWindow({
     width: 220,
@@ -198,6 +199,18 @@ export class Shell {
         throw new Error("This transcript is unavailable.");
       return this.copyRecentText(transcript.text);
     });
+    window.webContents.ipc.handle(
+      "dashboard-capture-key",
+      (_event, enabled) => {
+        if (
+          typeof enabled !== "boolean" ||
+          !this.captureDashboardKey ||
+          (enabled && !window.isFocused())
+        )
+          throw new Error("Open the dashboard to change a shortcut.");
+        this.captureDashboardKey(enabled);
+      },
+    );
     const reportMaximized = () =>
       window.webContents.send("dashboard-maximized", window.isMaximized());
     window.on("maximize", reportMaximized);
@@ -205,6 +218,7 @@ export class Shell {
     window.on("focus", () => this.state.refreshStartup());
     const stopMicTest = () => this.overlay.webContents.send("mic-test", false);
     window.on("blur", stopMicTest);
+    window.on("blur", () => this.captureDashboardKey?.(false));
     window.on("hide", stopMicTest);
     window.on("minimize", stopMicTest);
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));

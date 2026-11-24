@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <array>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -11,8 +12,12 @@
 namespace {
 HWND owner, destination;
 DWORD destinationPid;
-bool armed, held, chord, forwardAlt, focusChanged;
-bool latched, stopKeyHeld;
+bool armed, held, chord, forwardKey, focusChanged;
+bool latched, stopPress, captureOpen, cancelKeyHeld;
+unsigned dictationKey=0xe038, cancelKey=1;
+KBDLLHOOKSTRUCT initialKey{};
+std::array<bool,256> keysDown{};
+int downCount;
 bool copyOnly, autoEnter, keepHistory, submitThisHold;
 bool waitingToSubmit;
 unsigned session;
@@ -23,6 +28,24 @@ constexpr int ToggleAutoEnter=1;
 constexpr int ToggleMode=2;
 void emit(const std::string& line) { std::cout << line << std::endl; }
 bool pressed(int key) { return (GetAsyncKeyState(key)&0x8000)!=0; }
+unsigned scan(const KBDLLHOOKSTRUCT& key) {
+    if(key.vkCode==VK_RMENU) return 0xe038;
+    if(key.vkCode==VK_PAUSE) return 0xe145;
+    if(key.vkCode==VK_NUMLOCK) return 0x45;
+    return key.scanCode | ((key.flags&LLKHF_EXTENDED)?0xe000:0);
+}
+INPUT replay(const KBDLLHOOKSTRUCT& frame) {
+    INPUT input{};
+    input.type=INPUT_KEYBOARD;
+    if(frame.vkCode==VK_PAUSE || frame.vkCode==VK_NUMLOCK || !frame.scanCode)
+        input.ki.wVk=static_cast<WORD>(frame.vkCode);
+    else {
+        input.ki.wScan=static_cast<WORD>(frame.scanCode);
+        input.ki.dwFlags=KEYEVENTF_SCANCODE;
+        if(frame.flags&LLKHF_EXTENDED)input.ki.dwFlags|=KEYEVENTF_EXTENDEDKEY;
+    }
+    return input;
+}
 void emitNearWindow(const std::string& event, HWND window) {
     MONITORINFO monitor{sizeof(MONITORINFO)};
     GetMonitorInfoW(MonitorFromWindow(window,MONITOR_DEFAULTTOPRIMARY),&monitor);
@@ -48,33 +71,54 @@ LRESULT CALLBACK keyboard(int code, WPARAM message, LPARAM data) {
     const auto& key=*reinterpret_cast<KBDLLHOOKSTRUCT*>(data);
     const bool down=message==WM_KEYDOWN || message==WM_SYSKEYDOWN;
     if(!(key.flags&LLKHF_INJECTED)) {
+        const auto physical=scan(key);
+        auto& previouslyDown=keysDown[key.vkCode&255];
+        const bool repeat=down && previouslyDown;
+        if(previouslyDown!=down)downCount+=down?1:-1;
+        previouslyDown=down;
         if(down && waitingToSubmit)submitThisHold=false;
-        if(key.vkCode==VK_RMENU) {
-            if(stopKeyHeld) {
-                if(!down)stopKeyHeld=false;
-                return 1;
+        if(physical==cancelKey && (cancelKeyHeld || (down && !repeat && captureOpen))) {
+            cancelKeyHeld=down;
+            if(down && !repeat) {
+                latched=false; chord=true; captureOpen=false;
+                emit("cancel "+std::to_string(session));
             }
-            if(down && latched) {
-                latched=false; stopKeyHeld=true;
-                emit("stop "+std::to_string(session));
-                return 1;
-            }
-            if(down && !held && armed) {
-                held=true; armed=false; chord=false; ++session;
-                submitThisHold=autoEnter;
-                // AltGr layouts generate a companion Left Ctrl keydown.
-                forwardAlt=pressed(VK_LCONTROL);
-                focusChanged=false; destination=GetForegroundWindow();
-                GetWindowThreadProcessId(destination,&destinationPid);
-                emitNearWindow("down "+std::to_string(session),destination);
+            return 1;
+        }
+        if(physical==dictationKey) {
+            // Let AltGr's companion Left Ctrl and Right Alt reach the layout.
+            const bool altGr=physical==0xe038 && pressed(VK_LCONTROL);
+            if(down && !repeat && !held && (armed || latched) &&
+               (downCount==1 || (altGr && downCount==2 && keysDown[VK_LCONTROL]))) {
+                held=true; chord=false; forwardKey=altGr; initialKey=key;
+                stopPress=latched;
+                if(!latched) {
+                    armed=false; captureOpen=true; ++session;
+                    submitThisHold=autoEnter;
+                    focusChanged=false; destination=GetForegroundWindow();
+                    GetWindowThreadProcessId(destination,&destinationPid);
+                    emitNearWindow("down "+std::to_string(session),destination);
+                }
             } else if(!down && held) {
                 held=false;
-                if(!chord) emit("up "+std::to_string(session));
-                if(!forwardAlt) return 1;
+                if(!chord && captureOpen) {
+                    if(stopPress) {
+                        latched=false; captureOpen=false;
+                        emit("stop "+std::to_string(session));
+                    } else emit("up "+std::to_string(session));
+                }
+                if(!forwardKey) return 1;
             }
-            if(held && !forwardAlt) return 1;
-        } else if(down && held && !chord) {
+            if(held && !forwardKey) return 1;
+        } else if(down && !repeat && held && !chord && captureOpen) {
+            latched=false; captureOpen=false;
             chord=true; emit("cancel "+std::to_string(session));
+            if(!forwardKey) {
+                INPUT keys[]{replay(initialKey),replay(key)};
+                const auto count=SendInput(2,keys,sizeof(INPUT));
+                forwardKey=count!=0;
+                if(count==2)return 1;
+            }
         }
     }
     return CallNextHookEx(nullptr,code,message,data);
@@ -118,7 +162,18 @@ LRESULT CALLBACK procedure(HWND window,UINT msg,WPARAM wp,LPARAM lp) {
             std::istringstream fields(*line);
             std::string action;
             unsigned id;
-            if(fields>>action>>id && id==session) latched=action=="latch" && !held;
+            if(fields>>action>>id && id==session) {
+                latched=action=="latch" && !held && captureOpen;
+                if(action=="finish")captureOpen=false;
+            }
+        }
+        if(line->rfind("keys ",0)==0) {
+            std::istringstream fields(line->substr(5));
+            unsigned primary, cancel;
+            if(fields>>primary>>cancel && !held && !cancelKeyHeld && primary!=cancel) {
+                dictationKey=primary;
+                cancelKey=cancel;
+            }
         }
         if(line->rfind("delivery ",0)==0) {
             std::istringstream fields(line->substr(9));

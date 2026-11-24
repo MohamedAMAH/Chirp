@@ -4,6 +4,7 @@
   type Preferences = import("../shared/dashboard").Preferences;
   type DictationTotals = import("../shared/dashboard").DictationTotals;
   type RecentTranscript = import("../shared/dashboard").RecentTranscript;
+  type Shortcut = "dictationKey" | "cancelKey";
   const bridge = (window as unknown as { chirpWindow?: DashboardBridge })
     .chirpWindow;
   const fields = document.querySelectorAll<HTMLInputElement>("[data-setting]");
@@ -25,6 +26,7 @@
   function render(state: DashboardState) {
     current = state;
     const { preferences, model, modelOverride } = state;
+    renderKeys(state);
     signIn.checked = state.startup.enabled;
     signIn.disabled = !state.startup.available;
     setText(
@@ -157,6 +159,101 @@
     if (error) showMessage(error);
   });
   window.addEventListener("blur", () => renderLevel(0, false));
+
+  const keyButtons = {
+    dictationKey: document.querySelector<HTMLButtonElement>("#dictation-key")!,
+    cancelKey: document.querySelector<HTMLButtonElement>("#cancel-key")!,
+  };
+  let picking: { key: Shortcut; ready: boolean } | undefined;
+  function keyName(code: string) {
+    const side = code.match(/^(Alt|Control|Meta|Shift)(Left|Right)$/);
+    if (side) return `${side[2]} ${side[1] === "Control" ? "Ctrl" : side[1]}`;
+    if (code === "Escape") return "Esc";
+    return code
+      .replace(/^(Key|Digit)(?=.$)/, "")
+      .replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+  }
+  function renderKeys({ preferences, binding }: DashboardState) {
+    const managed = binding === "sway";
+    setText("live-key", keyName(preferences.dictationKey));
+    setText(
+      "dictation-key-hint",
+      managed
+        ? "Sway uses the Right Alt binding in its configuration."
+        : binding === "x11"
+          ? "Choose a modifier. Hold to talk, or tap to start and stop."
+          : "Hold to talk, or tap once to start and again to stop.",
+    );
+    setText(
+      "cancel-key-hint",
+      managed
+        ? "A dedicated cancel key is unavailable on Sway."
+        : "Discards the recording without copying or pasting.",
+    );
+    for (const key of ["dictationKey", "cancelKey"] as const) {
+      const button = keyButtons[key];
+      const label =
+        picking?.key === key
+          ? "Press a key"
+          : managed && key === "cancelKey"
+            ? "—"
+            : keyName(preferences[key]);
+      button.disabled = managed;
+      button.querySelector("kbd")!.textContent = label;
+      button.setAttribute(
+        "aria-label",
+        `${key === "cancelKey" ? "Cancel key" : "Dictation key"}, ${label}`,
+      );
+    }
+  }
+  function stopPicking() {
+    if (!picking) return;
+    picking = undefined;
+    if (current) renderKeys(current);
+    void bridge?.captureKey(false).catch(() => {});
+  }
+  for (const key of ["dictationKey", "cancelKey"] as const) {
+    const button = keyButtons[key];
+    button.addEventListener("click", async () => {
+      if (!current || !bridge) return;
+      const wasPicking = picking?.key === key;
+      stopPicking();
+      if (wasPicking) return;
+      const attempt = { key, ready: false };
+      picking = attempt;
+      renderKeys(current);
+      try {
+        await bridge.captureKey(true);
+        if (picking === attempt) attempt.ready = true;
+      } catch {
+        if (picking === attempt) stopPicking();
+        showMessage("Finish dictating before changing a shortcut.");
+      }
+    });
+    button.addEventListener("blur", () => {
+      if (picking?.key === key) stopPicking();
+    });
+    button.addEventListener("keydown", async (event) => {
+      if (!current || picking?.key !== key) return;
+      event.preventDefault();
+      if (!picking.ready || event.repeat) return;
+      const choice = event.code;
+      const other = key === "cancelKey" ? "dictationKey" : "cancelKey";
+      const options =
+        key === "cancelKey"
+          ? current.bindableKeys.cancel
+          : current.bindableKeys.dictation;
+      if (!options.includes(choice) || current.preferences[other] === choice) {
+        showMessage("Choose a different key for this shortcut.");
+        return;
+      }
+      const attempt = picking;
+      attempt.ready = false;
+      await save(key, choice);
+      if (picking === attempt) stopPicking();
+    });
+  }
+  window.addEventListener("blur", stopPicking);
 
   const recentList = document.querySelector<HTMLUListElement>(
     "#recent-transcripts",
