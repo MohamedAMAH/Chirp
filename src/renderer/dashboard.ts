@@ -1,0 +1,183 @@
+(() => {
+  interface ChirpWindow {
+    minimize(): void;
+    toggleMaximize(): void;
+    close(): void;
+    onMaximizedChange(listener: (maximized: boolean) => void): void;
+  }
+  const bridge = (window as unknown as { chirpWindow?: ChirpWindow })
+    .chirpWindow;
+
+  // The page's security policy blocks inline style attributes, so chart
+  // heights and animation delays arrive as data attributes.
+  for (const el of document.querySelectorAll<HTMLElement>("[data-h]"))
+    el.style.setProperty("--h", `${el.dataset.h}%`);
+  for (const el of document.querySelectorAll<HTMLElement>("[data-i]"))
+    el.style.setProperty("--i", el.dataset.i ?? "0");
+
+  // Numbers on the Overview count up from zero each time it is shown.
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function countUp() {
+    for (const el of document.querySelectorAll<HTMLElement>(".count")) {
+      const target = Number(el.dataset.value);
+      if (reduceMotion) {
+        el.textContent = target.toLocaleString("en-US");
+        continue;
+      }
+      const start = performance.now();
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - start) / 1000);
+        const eased = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        el.textContent = Math.round(target * eased).toLocaleString("en-US");
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+  }
+
+  const tabs = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+  );
+  function select(tab: HTMLButtonElement, focus = false) {
+    if (
+      tab.id === "tab-overview" &&
+      tab.getAttribute("aria-selected") !== "true"
+    )
+      countUp();
+    for (const other of tabs) {
+      const on = other === tab;
+      other.setAttribute("aria-selected", String(on));
+      other.tabIndex = on ? 0 : -1;
+      const panel = document.getElementById(
+        other.getAttribute("aria-controls") ?? "",
+      );
+      if (panel) panel.hidden = !on;
+    }
+    if (focus) tab.focus();
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => select(tab));
+    tab.addEventListener("keydown", (event) => {
+      const step =
+        event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+      if (step) {
+        event.preventDefault();
+        select(tabs[(index + step + tabs.length) % tabs.length], true);
+      } else if (event.key === "Home" || event.key === "End") {
+        event.preventDefault();
+        select(event.key === "Home" ? tabs[0] : tabs[tabs.length - 1], true);
+      }
+    });
+  });
+
+  // Nothing in the settings is connected yet. Switches and the microphone
+  // list move for UI testing, but nothing is saved or applied. Every other
+  // interaction inside a card is swallowed.
+  const live = 'input[role="switch"]:not(:disabled)';
+  for (const type of ["pointerdown", "mousedown", "click", "keydown"]) {
+    document.querySelector("main")?.addEventListener(
+      type,
+      (event) => {
+        const target = event.target as Element;
+        if (!target.closest(".card")) return;
+        if (event instanceof KeyboardEvent && event.key === "Tab") return;
+        if (target.closest(".dropdown")) return;
+        const control = target.closest("label")?.control ?? target;
+        if (control.matches(live)) return;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true,
+    );
+  }
+
+  // A dropdown that matches the app instead of the system menu.
+  for (const dropdown of document.querySelectorAll<HTMLElement>(".dropdown")) {
+    const button = dropdown.querySelector<HTMLButtonElement>(".dd-button")!;
+    const list = dropdown.querySelector<HTMLElement>(".dd-list")!;
+    const label = dropdown.querySelector<HTMLElement>(".dd-value")!;
+    const options = Array.from(
+      list.querySelectorAll<HTMLElement>('[role="option"]'),
+    );
+    let active = 0;
+    const setActive = (index: number) => {
+      active = (index + options.length) % options.length;
+      options.forEach((o, n) => o.classList.toggle("active", n === active));
+      list.setAttribute("aria-activedescendant", options[active].id);
+      options[active].scrollIntoView({ block: "nearest" });
+    };
+    const close = () => {
+      list.hidden = true;
+      button.setAttribute("aria-expanded", "false");
+    };
+    const open = () => {
+      dropdown.classList.remove("up");
+      list.hidden = false;
+      const room = window.innerHeight - button.getBoundingClientRect().bottom;
+      dropdown.classList.toggle("up", room < list.offsetHeight + 16);
+      button.setAttribute("aria-expanded", "true");
+      setActive(
+        options.findIndex((o) => o.getAttribute("aria-selected") === "true"),
+      );
+    };
+    const choose = (index: number) => {
+      options.forEach((o, n) =>
+        o.setAttribute("aria-selected", String(n === index)),
+      );
+      label.textContent = options[index].textContent?.trim() ?? "";
+      close();
+      button.focus();
+    };
+    button.addEventListener("click", () => (list.hidden ? open() : close()));
+    button.addEventListener("keydown", (event) => {
+      if (list.hidden) {
+        if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+          event.preventDefault();
+          open();
+        }
+        return;
+      }
+      const moves: Record<string, () => void> = {
+        ArrowDown: () => setActive(active + 1),
+        ArrowUp: () => setActive(active - 1),
+        Home: () => setActive(0),
+        End: () => setActive(options.length - 1),
+        Enter: () => choose(active),
+        " ": () => choose(active),
+        Escape: close,
+        Tab: close,
+      };
+      const move = moves[event.key];
+      if (!move) return;
+      if (event.key !== "Tab") event.preventDefault();
+      move();
+    });
+    options.forEach((option, index) => {
+      option.addEventListener("click", () => choose(index));
+      option.addEventListener("mousemove", () => setActive(index));
+    });
+    document.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!dropdown.contains(event.target as Node)) close();
+      },
+      true,
+    );
+    for (const tab of tabs) tab.addEventListener("click", close);
+  }
+
+  countUp();
+
+  const maximize = document.getElementById("maximize");
+  document
+    .getElementById("minimize")
+    ?.addEventListener("click", () => bridge?.minimize());
+  maximize?.addEventListener("click", () => bridge?.toggleMaximize());
+  document
+    .getElementById("close")
+    ?.addEventListener("click", () => bridge?.close());
+  bridge?.onMaximizedChange((maximized) => {
+    document.documentElement.dataset.maximized = String(maximized);
+    maximize?.setAttribute("aria-label", maximized ? "Restore" : "Maximize");
+  });
+})();

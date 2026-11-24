@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   globalShortcut,
+  ipcMain,
   Menu,
   nativeImage,
   screen,
@@ -10,9 +11,11 @@ import {
 import path from "node:path";
 import { isSway, moveSwayIndicator } from "./sway";
 
-function icon() {
+// tray.png has @1.25x, @1.5x, @2x and @3x companions that Electron picks for
+// high-DPI displays. All of them are rendered from assets/chirp.svg.
+function icon(name = "tray.png") {
   return nativeImage.createFromPath(
-    path.join(app.getAppPath(), "assets/tray.png"),
+    path.join(app.getAppPath(), "assets", name),
   );
 }
 export class Shell {
@@ -35,14 +38,32 @@ export class Shell {
       preload: path.join(__dirname, "../preload/index.js"),
     },
   });
-  private readonly shortcut =
+  // Ctrl+Q quits from any window. On Sway the compositor binds it instead.
+  readonly shortcut =
     isSway() || globalShortcut.register("Control+Q", () => app.quit());
   private swayPosition?: { x: number; y: number };
   private hideTimer?: NodeJS.Timeout;
   private noticeId = 0;
   private activeNotice?: number;
   private indicator?: string;
+  private dashboard?: BrowserWindow;
+  private quitting = false;
   constructor() {
+    app.once("before-quit", () => (this.quitting = true));
+    this.tray.on("click", () => this.showDashboard());
+    ipcMain.on("dashboard-window", (event, action: string) => {
+      const window = this.dashboard;
+      if (
+        !window ||
+        window.isDestroyed() ||
+        event.sender !== window.webContents
+      )
+        return;
+      if (action === "minimize") window.minimize();
+      else if (action === "toggleMaximize")
+        window.isMaximized() ? window.unmaximize() : window.maximize();
+      else if (action === "close") window.close();
+    });
     this.overlay.setIgnoreMouseEvents(true);
     this.overlay.webContents.ipc.on("notice-finished", (_event, id: number) => {
       if (id !== this.activeNotice) return;
@@ -65,16 +86,60 @@ export class Shell {
     this.tray.setToolTip("Chirp · " + message);
     this.tray.setContextMenu(
       Menu.buildFromTemplate([
-        { label: message, enabled: false },
-        {
-          label: this.shortcut
-            ? "Hold Right Alt to dictate"
-            : "Ctrl+Q is unavailable",
-          enabled: false,
-        },
-        { type: "separator" },
-        { label: "Quit Chirp", click: () => app.quit() },
+        { label: "Show", click: () => this.showDashboard() },
+        { label: "Quit", click: () => app.quit() },
       ]),
+    );
+  }
+  showDashboard() {
+    const existing = this.dashboard;
+    if (existing && !existing.isDestroyed()) {
+      if (existing.isMinimized()) existing.restore();
+      existing.show();
+      existing.focus();
+      return;
+    }
+    // A landscape window at 60% of the screen, never smaller than the
+    // dashboard needs to show everything without scrolling.
+    const area = screen.getDisplayNearestPoint(
+      screen.getCursorScreenPoint(),
+    ).workArea;
+    const minWidth = Math.min(960, area.width);
+    const minHeight = Math.min(560, area.height);
+    const window = new BrowserWindow({
+      width: Math.max(minWidth, Math.round(area.width * 0.6)),
+      height: Math.max(minHeight, Math.round(area.height * 0.6)),
+      minWidth,
+      minHeight,
+      center: true,
+      title: "Chirp",
+      icon: icon("icon.png"),
+      show: false,
+      frame: false,
+      autoHideMenuBar: true,
+      backgroundColor: "#ebebd8",
+      webPreferences: {
+        sandbox: true,
+        contextIsolation: true,
+        preload: path.join(__dirname, "../preload/dashboard.js"),
+      },
+    });
+    this.dashboard = window;
+    window.setMenu(null);
+    const reportMaximized = () =>
+      window.webContents.send("dashboard-maximized", window.isMaximized());
+    window.on("maximize", reportMaximized);
+    window.on("unmaximize", reportMaximized);
+    window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    window.webContents.on("will-navigate", (event) => event.preventDefault());
+    window.once("ready-to-show", () => window.show());
+    window.on("close", (event) => {
+      if (this.quitting) return;
+      event.preventDefault();
+      window.hide();
+    });
+    void window.loadFile(
+      path.join(app.getAppPath(), "src/renderer/dashboard.html"),
     );
   }
   position(x: number, y: number) {

@@ -21,6 +21,7 @@ else {
     await shell.load();
     startDictation(shell);
   });
+  app.on("second-instance", () => shell?.showDashboard());
   app.on("window-all-closed", () => {});
   app.on("will-quit", () => globalShortcut.unregisterAll());
 }

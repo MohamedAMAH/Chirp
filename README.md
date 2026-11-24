@@ -71,7 +71,9 @@ Click a text field, hold **Right Alt**, speak, and release. Chirp uses the defau
 | Right Alt + another key | Cancel the current recording on Windows or X11. |
 | `Ctrl+B` | Toggle **Auto-Enter**. It starts off on every launch and is unavailable on Sway. |
 | `Ctrl+N` | Switch between **Streaming** and **Whole recording**. |
-| `Ctrl+Q` | Quit Chirp. The tray menu also has **Quit Chirp**. |
+| `Ctrl+Q` | Quit Chirp. The tray menu also has **Quit**. |
+
+Choose **Show** in the tray menu, or click the tray icon, to open the Chirp window.
 
 ### Indicator
 
