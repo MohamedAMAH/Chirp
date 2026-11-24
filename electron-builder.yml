@@ -2,7 +2,9 @@ appId: local.chirp.dictation
 productName: Chirp
 npmRebuild: false
 files:
-  - assets/tray.png
+  - assets/tray*.png
+  - assets/icon.png
+  - assets/chirp.svg
   - out/**/*
   - src/renderer/*.html
   - src/renderer/*.css
@@ -25,7 +27,7 @@ win:
 linux:
   target:
     - tar.gz
-  icon: assets/tray.png
+  icon: assets/icon.png
   category: Utility
   extraResources:
     - from: build/chirp-input
