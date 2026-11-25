@@ -130,15 +130,14 @@ export class Shell {
       existing.focus();
       return;
     }
-    // A landscape window at 60% of the screen, never smaller than the
-    // dashboard needs to show everything without scrolling.
+    // Open at the dashboard's layout width, with height based on the display.
     const area = screen.getDisplayNearestPoint(
       screen.getCursorScreenPoint(),
     ).workArea;
     const minWidth = Math.min(960, area.width);
     const minHeight = Math.min(560, area.height);
     const window = new BrowserWindow({
-      width: Math.max(minWidth, Math.round(area.width * 0.6)),
+      width: minWidth,
       height: Math.max(minHeight, Math.round(area.height * 0.6)),
       minWidth,
       minHeight,
