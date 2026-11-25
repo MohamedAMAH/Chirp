@@ -556,6 +556,17 @@ input[role="switch"]:disabled::after {
   outline-offset: 0;
 }
 
+.card:has(#enter:not(:checked)) .delay-row:not(:focus-within) {
+  border-radius: 0 0 13px 13px;
+  background: color-mix(in srgb, var(--card) 94%, var(--muted));
+}
+.card:has(#enter:not(:checked)) .delay-row:not(:focus-within) .name {
+  color: var(--muted);
+}
+.card:has(#enter:not(:checked)) .delay-row:not(:focus-within) input {
+  background: color-mix(in srgb, var(--cream) 75%, var(--line));
+}
+
 /* Transcripts */
 .empty {
   padding: 40px 20px;
