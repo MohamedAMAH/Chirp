@@ -610,7 +610,7 @@ input[type="range"] {
 .tile {
   display: grid;
   gap: 2px;
-  padding: 14px 16px 12px;
+  padding: 12px 16px 10px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--card);
@@ -673,7 +673,7 @@ input[type="range"] {
   grid-template-rows: 1fr auto;
   justify-items: center;
   gap: 8px;
-  height: 226px;
+  height: 208px;
 }
 .stack {
   display: flex;
@@ -742,7 +742,7 @@ input[type="range"] {
 .status-card {
   display: flex;
   flex-direction: column;
-  padding: 18px 20px;
+  padding: 16px 20px;
 }
 .status-card .state {
   display: flex;
@@ -783,12 +783,13 @@ input[type="range"] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 12px;
-  margin: 18px 0 0;
+  margin: 12px 0 0;
 }
 .status-card dl > div {
   display: grid;
+  align-content: start;
   gap: 1px;
-  padding: 11px 0;
+  padding: 6px 0;
   border-top: 1px solid var(--line);
 }
 .status-card dt {
