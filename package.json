@@ -1,7 +1,7 @@
 {
-  "name": "chirp-dictation",
+  "name": "chirp",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Offline push-to-talk dictation for Windows, Linux X11, and Sway",
   "main": "out/main/index.js",
   "engines": {

@@ -25,6 +25,7 @@ win:
     - from: native/windows/terms.txt
       to: Chirp Terms.txt
 linux:
+  executableName: chirp-dictation
   target:
     - tar.gz
   icon: assets/icon.png
