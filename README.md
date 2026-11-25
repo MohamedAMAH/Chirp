@@ -59,6 +59,12 @@ include "/absolute/path/to/Chirp/resources/chirp-sway.conf"
 
 From a source checkout, use `native/linux/chirp-sway.conf`. Run `swaymsg reload`, then launch `chirp-dictation`. The configuration keeps the indicator from taking keyboard focus. Its shortcuts stay active in Sway while the file is included, even after Chirp quits. Adjust the bindings if they conflict with your own.
 
+#### Updating an existing Sway setup
+
+1. Quit Chirp with `Ctrl+Q`.
+2. Point your existing `include` at the new package's `resources/chirp-sway.conf`. If you copied the old rules into your own config, replace those rules with the new include. The old rules match every Chirp window and can keep the dashboard from receiving keyboard focus.
+3. Run `swaymsg reload`, then launch Chirp again. Open the dashboard from the tray or by launching Chirp a second time.
+
 ## Usage
 
 Click a text field, hold **Right Alt**, speak, and release. Chirp uses the default system microphone and tries to paste into the window you started in.
