@@ -213,6 +213,9 @@ main {
   max-width: 640px;
   animation: enter 220ms var(--ease);
 }
+#panel-overview {
+  margin-inline: auto;
+}
 @keyframes enter {
   from {
     opacity: 0;
