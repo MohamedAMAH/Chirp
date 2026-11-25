@@ -170,7 +170,8 @@ subscription.on("data", (chunk) => {
       ) {
         focusRevision++;
       } else if (
-        event.change === "new" &&
+        // Wayland can map the window before delivering its title.
+        (event.change === "new" || event.change === "title") &&
         event.container?.app_id === swayAppId &&
         event.container?.name === swayIndicatorTitle
       ) {
