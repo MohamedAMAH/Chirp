@@ -3,6 +3,7 @@ out/
 /build
 dist/
 /models
+/.impeccable
 *.wav
 *.pcm
 *.log
