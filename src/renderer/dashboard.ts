@@ -67,10 +67,9 @@
         : "Clipboard history is available on Windows.",
     );
     document.querySelector<HTMLInputElement>("#delay")!.disabled =
-      !canSubmit || !preferences.autoEnter;
+      !state.canAutoEnter;
     document.querySelector<HTMLInputElement>("#silence-duration")!.disabled =
       !preferences.stopOnSilence;
-    setText("delay-value", `${preferences.autoEnterDelay} ms`);
     setText(
       "live-auto-enter",
       canSubmit ? (preferences.autoEnter ? "On" : "Off") : "Unavailable",
@@ -119,7 +118,7 @@
       const value =
         field.type === "checkbox"
           ? field.checked
-          : field.type === "range" || field.type === "number"
+          : field.type === "number"
             ? field.valueAsNumber
             : key === "streaming"
               ? field.value === "true"
@@ -127,10 +126,6 @@
       void save(key, value);
     });
   }
-  const delay = document.querySelector<HTMLInputElement>("#delay")!;
-  delay.addEventListener("input", () =>
-    setText("delay-value", `${delay.value} ms`),
-  );
   const testMic = document.querySelector<HTMLButtonElement>("#test-mic")!;
   const micBars = Array.from(document.querySelectorAll(".meter i"));
   let testing = false;

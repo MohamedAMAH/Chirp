@@ -596,18 +596,19 @@
                   Enter before the app has the text.</span
                 >
               </div>
-              <div class="slider">
+              <div class="number">
                 <input
                   id="delay"
                   data-setting="autoEnterDelay"
-                  type="range"
+                  type="number"
                   min="300"
                   max="2000"
-                  step="50"
+                  step="1"
                   value="600"
+                  aria-describedby="delay-unit"
                   disabled
                 />
-                <output id="delay-value" for="delay">600 ms</output>
+                <span id="delay-unit">milliseconds</span>
               </div>
             </div>
           </div>

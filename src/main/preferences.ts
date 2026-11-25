@@ -35,7 +35,7 @@ const validators: {
   microphone: (v): v is string =>
     typeof v === "string" && v.length > 0 && v.length <= 256,
   autoEnterDelay: (v): v is number =>
-    typeof v === "number" && v >= 300 && v <= 2000 && v % 50 === 0,
+    typeof v === "number" && Number.isInteger(v) && v >= 300 && v <= 2000,
 };
 
 function validPreference<K extends keyof Preferences>(

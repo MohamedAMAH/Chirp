@@ -556,24 +556,6 @@ input[role="switch"]:disabled::after {
   outline-offset: 0;
 }
 
-/* Slider */
-.slider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-.slider output {
-  min-width: 56px;
-  font-weight: 600;
-  text-align: right;
-}
-input[type="range"] {
-  width: 150px;
-  margin: 0;
-  accent-color: var(--moss);
-}
-
 /* Transcripts */
 .empty {
   padding: 40px 20px;
@@ -808,8 +790,7 @@ button,
 [role="tab"],
 label[for],
 .segmented label,
-input[role="switch"],
-input[type="range"] {
+input[role="switch"] {
   cursor: pointer;
 }
 :disabled,
