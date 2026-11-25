@@ -277,9 +277,12 @@ h2 {
   color: var(--sage);
 }
 
-/* Segmented choice */
+/* Segmented choice: the highlight slides between options */
 .segmented {
-  display: inline-flex;
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   flex-shrink: 0;
   margin: 0;
   padding: 3px;
@@ -289,6 +292,7 @@ h2 {
 }
 .segmented label {
   position: relative;
+  z-index: 1;
 }
 .segmented input {
   position: absolute;
@@ -296,22 +300,45 @@ h2 {
 }
 .segmented span {
   display: block;
-  padding: 5px 14px;
+  padding: 3px 14px 7px;
   border-radius: 7px;
   font-weight: 600;
   font-size: 13px;
+  text-align: center;
   white-space: nowrap;
   color: var(--muted);
+  transition: color 220ms ease-out;
+}
+.segmented .thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 2);
+  border-radius: 7px;
+  background: var(--forest);
+  opacity: 0;
+  transition:
+    transform 280ms var(--ease),
+    background 220ms ease-out,
+    opacity 160ms ease-out;
+}
+.segmented:has(input:checked) .thumb {
+  opacity: 1;
+}
+.segmented:has(label:nth-of-type(2) input:checked) .thumb {
+  transform: translateX(100%);
 }
 .segmented input:checked + span {
-  background: var(--forest);
   color: var(--cream);
 }
 .segmented:disabled span {
   color: var(--sage);
 }
-.segmented:disabled input:checked + span {
+.segmented:disabled .thumb {
   background: var(--line);
+}
+.segmented:disabled input:checked + span {
   color: var(--forest);
 }
 
@@ -363,7 +390,7 @@ input[role="switch"]:disabled::after {
   justify-content: space-between;
   gap: 10px;
   width: 250px;
-  padding: 7px 10px 7px 12px;
+  padding: 6px 10px 8px 12px;
   border: 1px solid var(--line);
   border-radius: 9px;
   font: inherit;
@@ -488,7 +515,7 @@ input[role="switch"]:disabled::after {
 }
 .key kbd {
   display: block;
-  padding: 5px 14px;
+  padding: 4px 14px 6px;
   border: 1px solid var(--sage);
   border-bottom-width: 2px;
   border-radius: 8px;
@@ -508,14 +535,25 @@ input[role="switch"]:disabled::after {
 }
 .number input {
   width: 56px;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
+  padding: 6px 8px 8px;
+  border: 0;
   border-radius: 9px;
+  appearance: textfield;
   font: inherit;
   font-weight: 600;
   text-align: center;
   color: var(--forest);
   background: var(--cream);
+}
+
+.number input::-webkit-inner-spin-button,
+.number input::-webkit-outer-spin-button {
+  display: none;
+  margin: 0;
+  appearance: none;
+}
+.number input:focus-visible {
+  outline-offset: 0;
 }
 
 /* Slider */
@@ -791,6 +829,8 @@ input[type="range"] {
   .status-card .dot::after {
     animation: none;
   }
+  .segmented .thumb,
+  .segmented span,
   input[role="switch"],
   input[role="switch"]::after,
   [role="tab"],
@@ -810,9 +850,12 @@ input[type="range"] {
     border: 1px solid CanvasText;
   }
   [role="tab"][aria-selected="true"],
-  .segmented input:checked + span {
+  .segmented .thumb {
     forced-color-adjust: none;
     background: Highlight;
+  }
+  .segmented input:checked + span {
+    forced-color-adjust: none;
     color: HighlightText;
   }
 }
