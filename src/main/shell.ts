@@ -56,6 +56,13 @@ export class Shell {
   constructor() {
     app.once("before-quit", () => (this.quitting = true));
     this.tray.on("click", () => this.showDashboard());
+    this.tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: "Show", click: () => this.showDashboard() },
+        { type: "separator" },
+        { label: "Quit", click: () => app.quit() },
+      ]),
+    );
     this.state.onChange(() => {
       const window = this.dashboard;
       if (window && !window.isDestroyed())
@@ -114,15 +121,6 @@ export class Shell {
         ? `Ready · ${model} · ${preferences.streaming ? "Streaming" : "Whole recording"}`
         : status;
     this.tray.setToolTip("Chirp · " + summary);
-    this.tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: "Show", click: () => this.showDashboard() },
-        { type: "separator" },
-        { label: summary, enabled: false },
-        { type: "separator" },
-        { label: "Quit", click: () => app.quit() },
-      ]),
-    );
   }
   showDashboard() {
     const existing = this.dashboard;
