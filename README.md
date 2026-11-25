@@ -27,6 +27,10 @@ Chirp is a small tray app for dictation. Hold **Right Alt**, speak, and release.
 
 Check out the [Shortcuts](#shortcuts) and [Speech Models](#speech-models) for a quick reference.
 
+## Why I built Chirp
+
+I built Chirp to give coding agents better prompts. When I’m working in Codex, Claude Code, or Cursor, it’s easier to talk through a bug, explain what I’ve already tried, and say what I want to happen next. Chirp transcribes what I say and pastes it into the prompt I’m working on.
+
 ## Installation
 
 | Platform | Package | Notes |
@@ -67,7 +71,7 @@ From a source checkout, use `native/linux/chirp-sway.conf`. Run `swaymsg reload`
 
 ## Usage
 
-Click a text field, hold **Right Alt**, speak, and release. Chirp uses the default system microphone and tries to paste into the window you started in.
+Click a text field, hold **Right Alt**, speak, and release. Chirp tries to paste into the window where you started. Chirp uses the system microphone by default. To choose another, open **Dictation** in the dashboard.
 
 ### Shortcuts
 
@@ -97,7 +101,7 @@ A small indicator at the top center of the screen shows what Chirp is doing.
 | --- | --- |
 | **Starting** | The microphone is opening. |
 | **Listening** | Audio is arriving. Speak now. |
-| **Transcribing** | You released the key and Chirp is working. |
+| **Transcribing** | The recording has ended and Chirp is finishing the transcript. |
 | **Copied** | The text is on the clipboard for manual paste. |
 
 ### Paste behavior
