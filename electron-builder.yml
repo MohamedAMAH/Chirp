@@ -39,7 +39,7 @@ nsis:
   license: native/windows/terms.txt
   oneClick: true
   perMachine: false
-  createDesktopShortcut: false
+  createDesktopShortcut: true
   createStartMenuShortcut: false
   runAfterFinish: true
   differentialPackage: false

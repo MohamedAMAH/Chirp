@@ -44,7 +44,7 @@ Other Wayland compositors and macOS are not supported.
 ### Windows
 
 1. Run `Chirp Setup.exe`, review the terms, and choose **I Agree**. Setup installs Chirp and both models for your account, then launches Chirp.
-2. Find the Chirp icon in the system tray. Its tooltip shows when the model is ready.
+2. Find the Chirp icon in the system tray. Its tooltip shows when the model is ready. Use the **Chirp** desktop shortcut to open it again.
 3. Click a text field, hold **Right Alt**, speak, and release.
 
 To remove Chirp, use **Settings → Apps → Installed apps**.
