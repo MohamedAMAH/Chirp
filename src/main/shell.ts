@@ -118,7 +118,7 @@ export class Shell {
     const { status, model, preferences } = this.state.snapshot;
     const summary =
       status === "Ready"
-        ? `Ready · ${model} · ${preferences.streaming ? "Streaming" : "Whole recording"}`
+        ? `Ready · ${model} · ${preferences.streaming ? "Streaming" : "Batch"}`
         : status;
     this.tray.setToolTip("Chirp · " + summary);
   }

@@ -22,7 +22,7 @@ Chirp is a small tray app for dictation. Hold **Right Alt**, speak, and release.
 - **Global Push-to-Talk**: Start a dictation from another app. Automatic paste depends on the target accepting its paste shortcut.
 - **Two Speech Models**: Qwen3-ASR 0.6B for 30 languages (default) and Parakeet TDT 0.6B v3 for faster results in 25 European languages.
 - **Clipboard Fallback**: If you switch windows, Chirp copies the text for manual paste. With clipboard history off, Windows restores your previous clipboard after a successful paste when possible.
-- **Streaming or Whole Recording**: Process phrases while you speak, or process the audio on release. Switch with `Ctrl+N`.
+- **Streaming or Batch**: Process phrases while you speak, or process the audio once the recording ends. Switch with `Ctrl+N`.
 - **Auto-Enter**: Turn it on in **Delivery** or press `Ctrl+B` on Windows or X11. Chirp waits for the target to read the pasted text before pressing Enter.
 
 Check out the [Shortcuts](#shortcuts) and [Speech Models](#speech-models) for a quick reference.
@@ -82,7 +82,7 @@ Click a text field, hold **Right Alt**, speak, and release. Chirp tries to paste
 | `Esc` | Discard the current recording on Windows or X11. |
 | Dictation key + another key | Pass the key combination through and discard the recording on Windows or X11. |
 | `Ctrl+B` | Toggle **Auto-Enter** on Windows and X11. It is off by default. |
-| `Ctrl+N` | Switch between **Streaming** and **Whole recording**. |
+| `Ctrl+N` | Switch between **Streaming** and **Batch**. |
 | `Ctrl+Q` | Quit Chirp. The tray menu also has **Quit**. |
 
 Choose **Show** in the tray menu, or click the tray icon, to open the Chirp window.
@@ -202,7 +202,7 @@ npm run dist:linux   # produce a portable tar.gz in dist/
 
 1. **At startup**, Electron prepares its audio processing and loads the selected speech model in a separate worker. The microphone stays closed until you press **Right Alt**.
 2. **When you start dictating**, a platform-specific helper remembers the focused window and tells Electron to open the microphone. The indicator shows **Listening** when audio starts arriving. In streaming mode, the worker transcribes phrases as you speak.
-3. **When the recording ends**, Chirp closes the microphone and completes the transcript. In whole-recording mode, the worker transcribes the full recording at this point.
+3. **When the recording ends**, Chirp closes the microphone and completes the transcript. In **Batch** mode, the worker transcribes the full recording at this point.
 4. **When the transcript is ready**, the helper copies it to the clipboard. In paste mode, it checks whether focus stayed in the original window before sending the paste shortcut. After switching windows, you can paste the transcript manually.
 
 ## Performance

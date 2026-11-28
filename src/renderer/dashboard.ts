@@ -40,10 +40,7 @@
     renderActivity(state.activity);
     renderRecent(state.recent, preferences.keepTranscripts);
     renderMicrophones?.(state);
-    setText(
-      "live-mode",
-      preferences.streaming ? "Streaming" : "Whole recording",
-    );
+    setText("live-mode", preferences.streaming ? "Streaming" : "Batch");
     setText(
       "model-hint",
       modelOverride

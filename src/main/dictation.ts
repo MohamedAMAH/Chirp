@@ -203,7 +203,7 @@ export function startDictation(shell: Shell, helper = openDesktopHelper()) {
           break;
         }
         shell.notify(
-          streaming ? "Mode · Streaming" : "Mode · Whole recording",
+          streaming ? "Mode · Streaming" : "Mode · Batch",
           Number(n),
           Number(x),
         );
