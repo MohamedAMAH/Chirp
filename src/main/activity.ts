@@ -67,14 +67,14 @@ export class DictationActivity {
   }
 
   get snapshot() {
+    const { day: today, week } = weekPosition(new Date());
     const days =
-      this.week === weekPosition(new Date()).week
-        ? this.days
-        : Array.from({ length: 7 }, empty);
+      this.week === week ? this.days : Array.from({ length: 7 }, empty);
     return {
       allTime: this.allTime,
       thisWeek: days.reduce(add, empty()),
       dailyWords: days.map((day) => day.words),
+      today,
     };
   }
 

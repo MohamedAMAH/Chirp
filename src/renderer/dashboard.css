@@ -691,10 +691,10 @@ input[role="switch"]:disabled::after {
   animation-delay: calc(var(--i) * 70ms + 200ms);
   transition: background 160ms ease-out;
 }
-.peak .fill {
+.current-day .fill {
   background: var(--moss);
 }
-.col:hover .fill {
+.current-day:hover .fill {
   background: var(--forest);
 }
 .val {
@@ -704,7 +704,7 @@ input[role="switch"]:disabled::after {
   opacity: 0;
   transition: opacity 140ms ease-out;
 }
-.peak .val,
+.current-day .val,
 .col:hover .val {
   opacity: 1;
 }
@@ -712,6 +712,10 @@ input[role="switch"]:disabled::after {
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
+}
+.current-day .day {
+  color: var(--forest);
+  font-weight: 700;
 }
 @keyframes grow {
   from {

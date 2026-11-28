@@ -53,6 +53,7 @@ export interface DashboardState {
     thisWeek: DictationTotals;
     allTime: DictationTotals;
     dailyWords: number[];
+    today: number;
   };
   recent: RecentTranscript[];
 }

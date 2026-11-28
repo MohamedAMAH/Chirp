@@ -108,6 +108,19 @@
   void bridge
     ?.read()
     .then(render, () => showMessage("Chirp could not load its settings."));
+  function refreshAtMidnight() {
+    const now = new Date();
+    const midnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    );
+    window.setTimeout(() => {
+      void bridge?.read().then(render, () => {});
+      refreshAtMidnight();
+    }, midnight.getTime() - now.getTime());
+  }
+  if (bridge) refreshAtMidnight();
   for (const field of fields) {
     field.addEventListener("change", () => {
       if (field.type === "radio" && !field.checked) return;
@@ -328,11 +341,12 @@
     const dailySummary: string[] = [];
     columns.forEach((column, day) => {
       const words = activity.dailyWords[day];
+      const isToday = day === activity.today;
       column.style.setProperty("--h", `${max ? (words / max) * 100 : 0}%`);
-      column.classList.toggle("peak", words > 0 && words === max);
+      column.classList.toggle("current-day", isToday);
       column.querySelector(".val")!.textContent = format.format(words);
       dailySummary.push(
-        `${column.querySelector(".day")!.textContent} ${format.format(words)}`,
+        `${column.querySelector(".day")!.textContent}${isToday ? " (today)" : ""} ${format.format(words)}`,
       );
     });
     bars.setAttribute(
